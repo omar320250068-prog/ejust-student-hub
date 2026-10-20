@@ -1,0 +1,303 @@
+{
+  "campus": {
+    "name": "University Campus Master Plan",
+    "gates": [
+      {
+        "id": "G01",
+        "name": "Main Gate 01",
+        "type": "main_entrance",
+        "location": "East",
+        "coordinates": { "x": 90, "y": 50 },
+        "description": "Primary campus entrance on the east side. Visitor check-in, security screening, and shuttle drop-off.",
+        "tips": [
+          "Show your student ID at the gate for faster entry.",
+          "Visitors must check in at the security desk.",
+          "Shuttle drop-off is just inside the gate, to the right."
+        ]
+      },
+      {
+        "id": "G02",
+        "name": "South Gate 02",
+        "type": "secondary_entrance",
+        "location": "South",
+        "coordinates": { "x": 58, "y": 92 },
+        "description": "Secondary entrance from the south road. Convenient for South Parking Hub and the sports zone.",
+        "tips": [
+          "Closest entrance to South Parking Hub and the sports zone.",
+          "Used by shuttle buses during peak hours.",
+          "Walk north along the main road to reach the Central Academic zone."
+        ]
+      }
+    ],
+    "parkingHubs": [
+      {
+        "id": "P_NORTH",
+        "name": "North Parking Hub",
+        "coordinates": { "x": 53, "y": 18 },
+        "description": "Main parking for the North Academic Grid and residential zone shuttle stop.",
+        "tips": [
+          "Free for students with a campus parking sticker.",
+          "Best parking for the North Academic Grid (B17–B20).",
+          "Shuttle stop is at the south edge of the lot."
+        ]
+      },
+      {
+        "id": "P_SOUTH",
+        "name": "South Parking Hub",
+        "coordinates": { "x": 53, "y": 82 },
+        "description": "Parking serving the South Academic Grid and South Gate arrivals.",
+        "tips": [
+          "Best parking for the South Academic Grid (B23–B26).",
+          "Fills up before 09:00 on weekdays.",
+          "Use South Gate 02 for the quickest exit."
+        ]
+      },
+      {
+        "id": "P_WEST_1",
+        "name": "West Upper Parking Hub",
+        "coordinates": { "x": 14, "y": 41 },
+        "description": "Upper west parking next to the West Academic Grid.",
+        "tips": [
+          "Best parking for West Academic Grid buildings B21–B22.",
+          "2-minute walk to the west buildings."
+        ]
+      },
+      {
+        "id": "P_WEST_2",
+        "name": "West Lower Parking Hub",
+        "coordinates": { "x": 14, "y": 56 },
+        "description": "Lower west parking serving the West Extension buildings.",
+        "tips": [
+          "Best parking for West Extension buildings B27–B30.",
+          "Follow the west access road south to reach the sports zone."
+        ]
+      }
+    ],
+    "landmarks": [
+      {
+        "id": "STUDENT_AFFAIRS",
+        "name": "Student Affairs",
+        "category": "Administration",
+        "markerColor": "blue",
+        "coordinates": { "x": 67, "y": 38 },
+        "description": "Admissions, housing applications, student services desks, and official document requests.",
+        "tips": [
+          "Bring your student ID and a printed copy of any request form.",
+          "Housing applications open at the start of each semester — apply on day one.",
+          "Most paperwork is handled at the ground-floor service desks."
+        ]
+      },
+      {
+        "id": "LIBRARY",
+        "name": "Central Library",
+        "category": "Facility",
+        "coordinates": { "x": 61, "y": 48 },
+        "description": "Four-floor central library: print collections, digital databases, group study rooms, and printing services.",
+        "tips": [
+          "Your student ID is your library card — bring it.",
+          "Book group study rooms through the library portal, not at the desk.",
+          "Floor-3 printers are the most reliable; ground-floor ones jam often."
+        ]
+      },
+      {
+        "id": "SERVICE_ZONE",
+        "name": "Service Zone",
+        "category": "Facility",
+        "coordinates": { "x": 51, "y": 48 },
+        "description": "Campus services hub: bank branch, post office, pharmacy, and maintenance desk.",
+        "tips": [
+          "The pharmacy is your fastest option for minor medical needs.",
+          "The bank is busiest at the start of the month — go mid-month.",
+          "Bring your ID for post office document mailing."
+        ]
+      },
+      {
+        "id": "COE",
+        "name": "College of Engineering (CoE)",
+        "category": "Faculty",
+        "markerColor": "red",
+        "coordinates": { "x": 67, "y": 57 },
+        "description": "College of Engineering — main academic home for engineering departments, labs, and faculty offices.",
+        "tips": [
+          "Check your lab section schedule before coming — access is by course registration.",
+          "Faculty offices are on the upper floors; the lobby directory lists room numbers.",
+          "Ask your TA about open-lab hours."
+        ]
+      },
+      {
+        "id": "SPORTS_TRACK",
+        "name": "Sports Field & Running Track",
+        "category": "Sports",
+        "location": "South West",
+        "coordinates": { "x": 22, "y": 72 },
+        "description": "Outdoor athletics: football field, running track, and courts for open-air PE and club training.",
+        "tips": [
+          "PE sessions and club training use the track in the afternoons.",
+          "Bring water — there are no vending machines at the field.",
+          "Check the sports office schedule for reserved team slots."
+        ]
+      },
+      {
+        "id": "DORMS",
+        "name": "Student Housing / Residential Zone",
+        "category": "Housing",
+        "location": "North West",
+        "coordinates": { "x": 23, "y": 24 },
+        "description": "Residential buildings with furnished rooms, kitchenettes, laundry, and 24/7 access control.",
+        "tips": [
+          "Apply for housing the day applications open — popular room types fill fast.",
+          "Bring your own kitchen basics; kitchenettes are shared per floor.",
+          "Laundry is busiest Sunday evenings — go weekday mornings."
+        ]
+      }
+    ],
+    "buildings": [
+      {
+        "id": "B07",
+        "name": "Building B7",
+        "zone": "Central Academic",
+        "coordinates": { "x": 55.5, "y": 54 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "Central academic building — lecture rooms and department offices."
+      },
+      {
+        "id": "B08",
+        "name": "Building B8",
+        "zone": "Central Academic",
+        "coordinates": { "x": 62, "y": 54 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "Central academic building — signature solar-chimney structure; labs and studios."
+      },
+      {
+        "id": "B09",
+        "name": "Building B9",
+        "zone": "Central Academic",
+        "coordinates": { "x": 55.5, "y": 60 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "Central academic building — lecture rooms and project spaces."
+      },
+      {
+        "id": "B10",
+        "name": "Building B10",
+        "zone": "Central Academic",
+        "coordinates": { "x": 62, "y": 60 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "Central academic building — teaching labs and tutorial rooms."
+      },
+      {
+        "id": "B17",
+        "name": "Building B17",
+        "zone": "North Academic Grid",
+        "coordinates": { "x": 47, "y": 24 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "North grid academic building — classrooms and faculty offices."
+      },
+      {
+        "id": "B18",
+        "name": "Building B18",
+        "zone": "North Academic Grid",
+        "coordinates": { "x": 54, "y": 24 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "North grid academic building — classrooms and research groups."
+      },
+      {
+        "id": "B19",
+        "name": "Building B19",
+        "zone": "North Academic Grid",
+        "coordinates": { "x": 47, "y": 30 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "North grid academic building — lecture halls and study lounges."
+      },
+      {
+        "id": "B20",
+        "name": "Building B20",
+        "zone": "North Academic Grid",
+        "coordinates": { "x": 54, "y": 30 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "North grid academic building — labs and seminar rooms."
+      },
+      {
+        "id": "B21",
+        "name": "Building B21",
+        "zone": "West Academic Grid",
+        "markerColor": "yellow",
+        "coordinates": { "x": 26, "y": 44 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "West grid academic building — highlighted landmark building; workshops and studios."
+      },
+      {
+        "id": "B22",
+        "name": "Building B22",
+        "zone": "West Academic Grid",
+        "coordinates": { "x": 26, "y": 52 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "West grid academic building — classrooms and design studios."
+      },
+      {
+        "id": "B23",
+        "name": "Building B23",
+        "zone": "South Academic Grid",
+        "coordinates": { "x": 47, "y": 70 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "South grid academic building — classrooms and teaching labs."
+      },
+      {
+        "id": "B24",
+        "name": "Building B24",
+        "zone": "South Academic Grid",
+        "markerColor": "green",
+        "coordinates": { "x": 54, "y": 70 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "South grid academic building — highlighted landmark building; student project center."
+      },
+      {
+        "id": "B25",
+        "name": "Building B25",
+        "zone": "South Academic Grid",
+        "coordinates": { "x": 47, "y": 76 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "South grid academic building — lecture rooms and club spaces."
+      },
+      {
+        "id": "B26",
+        "name": "Building B26",
+        "zone": "South Academic Grid",
+        "coordinates": { "x": 54, "y": 76 },
+        "size": { "w": 6, "h": 4.5 },
+        "description": "South grid academic building — labs and tutorial rooms."
+      },
+      {
+        "id": "B27",
+        "name": "Building B27",
+        "zone": "West Extension",
+        "coordinates": { "x": 8.5, "y": 38 },
+        "size": { "w": 5, "h": 4.5 },
+        "description": "West extension building — expansion facilities and specialized labs."
+      },
+      {
+        "id": "B28",
+        "name": "Building B28",
+        "zone": "West Extension",
+        "coordinates": { "x": 8.5, "y": 47 },
+        "size": { "w": 5, "h": 4.5 },
+        "description": "West extension building — expansion facilities and maker spaces."
+      },
+      {
+        "id": "B29",
+        "name": "Building B29",
+        "zone": "West Extension",
+        "coordinates": { "x": 8.5, "y": 56 },
+        "size": { "w": 5, "h": 4.5 },
+        "description": "West extension building — storage, workshops, and utility plant support."
+      },
+      {
+        "id": "B30",
+        "name": "Building B30",
+        "zone": "West Extension",
+        "coordinates": { "x": 8.5, "y": 65 },
+        "size": { "w": 5, "h": 4.5 },
+        "description": "West extension building — future expansion and pilot plant areas."
+      }
+    ]
+  }
+}

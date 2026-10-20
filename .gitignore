@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# playwright artifacts
+/.playwright-mcp/
+/server.log
+
 # debug
 npm-debug.log*
 yarn-debug.log*
