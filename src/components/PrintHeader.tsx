@@ -11,6 +11,7 @@ const TITLES: Record<string, string> = {
   "/exams": "Exam Countdown & Study Plan",
   "/cafeteria": "Cafeteria & Meal Budget",
   "/scholarships": "Scholarship Finder",
+  "/assistant": "Campus Assistant",
 };
 
 export default function PrintHeader() {

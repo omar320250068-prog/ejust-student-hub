@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard } from "lucide-react";
+import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot } from "lucide-react";
 
 const LINKS = [
   { href: "/today", label: "Today", icon: LayoutDashboard },
@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/exams", label: "Exams", icon: AlarmClock },
   { href: "/cafeteria", label: "Cafeteria", icon: UtensilsCrossed },
   { href: "/scholarships", label: "Scholarships", icon: Award },
+  { href: "/assistant", label: "Assistant", icon: Bot },
 ];
 
 export default function TopNav() {
