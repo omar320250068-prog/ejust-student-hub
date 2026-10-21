@@ -136,3 +136,10 @@ npm run start   # serves on $PORT, default 3000
 - **Upgrade the assistant from BM25 to embeddings** — the retrieval interface is already abstracted; the missing piece is a funded embedding API or a Supabase project (`/api/sync` reports what's absent). Embeddings would also settle the mixed-subject false positives that the vocabulary list can't.
 - Supabase-backed shared reviews across devices
 - Real cafeteria menu and verified scholarship deadlines
+
+## Environment Setup
+
+Copy .env.example to .env.local and fill in your credentials:
+- AUTH_SECRET: Generate with openssl rand -base64 32`n- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET: From Google Cloud Console
+- DATABASE_URL: Postgres connection string (Supabase/Neon)
+
