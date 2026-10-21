@@ -24,8 +24,7 @@ import {
   type CourseStatus,
   type LetterGrade,
 } from "@/lib/gpa";
-
-const STORAGE_KEY = "ejust-gpa-v1";
+import { useUserData } from "@/hooks/useUserData";
 
 const SEED_COURSES: Course[] = [
   { id: "s1", code: "MATH101", title: "Calculus I", credits: 4, semester: "Y1S1", status: "completed", grade: "A" },
@@ -47,9 +46,30 @@ const SEED_COURSES: Course[] = [
 ];
 
 export default function GpaPage() {
-  const [courses, setCourses] = useState<Course[]>(SEED_COURSES);
-  const [targetGpa, setTargetGpa] = useState(3.5);
-  const [degreeCredits, setDegreeCredits] = useState(160);
+  const { data: saved, setData: saveData } = useUserData<{
+    courses: Course[];
+    targetGpa: number;
+    degreeCredits: number;
+  }>("gpa", {
+    courses: SEED_COURSES,
+    targetGpa: 3.5,
+    degreeCredits: 160,
+  });
+  const courses = saved.courses;
+  const targetGpa = saved.targetGpa;
+  const degreeCredits = saved.degreeCredits;
+  const setCourses = (updater: Course[] | ((prev: Course[]) => Course[])) => {
+    const next = typeof updater === "function" ? updater(courses) : updater;
+    saveData({ ...saved, courses: next });
+  };
+  const setTargetGpa = (v: number | ((p: number) => number)) => {
+    const next = typeof v === "function" ? v(targetGpa) : v;
+    saveData({ ...saved, targetGpa: next });
+  };
+  const setDegreeCredits = (v: number | ((p: number) => number)) => {
+    const next = typeof v === "function" ? v(degreeCredits) : v;
+    saveData({ ...saved, degreeCredits: next });
+  };
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
 
   const [form, setForm] = useState({
@@ -61,41 +81,6 @@ export default function GpaPage() {
     grade: "" as LetterGrade | "",
     expectedGrade: "" as LetterGrade | "",
   });
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const saved = JSON.parse(raw) as {
-          courses?: Course[];
-          targetGpa?: number;
-          degreeCredits?: number;
-        };
-        if (saved.courses?.length) setCourses(saved.courses);
-        if (typeof saved.targetGpa === "number") setTargetGpa(saved.targetGpa);
-        if (typeof saved.degreeCredits === "number")
-          setDegreeCredits(saved.degreeCredits);
-      } catch {
-        // fall back to seed data
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ courses, targetGpa, degreeCredits })
-        );
-      } catch {
-        // storage unavailable — data lives in session state
-      }
-    }, 100);
-    return () => window.clearTimeout(timer);
-  }, [courses, targetGpa, degreeCredits]);
 
   const stats = useMemo(
     () => computeStats(courses, targetGpa),
