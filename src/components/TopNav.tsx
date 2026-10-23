@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User } from "lucide-react";
+import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 
 const LINKS = [
@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/cafeteria", label: "Cafeteria", icon: UtensilsCrossed },
   { href: "/scholarships", label: "Scholarships", icon: Award },
   { href: "/assistant", label: "Assistant", icon: Bot },
+  { href: "/contribute", label: "Contribute", icon: FileText },
 ];
 
 export default function TopNav() {

@@ -71,3 +71,23 @@ export const userData = pgTable("user_data", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+export const contributions = pgTable("contribution", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  category: text("category").notNull(),
+  title: text("title").notNull(),
+  data: json("data").$type<Record<string, unknown> | unknown>().notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt", { mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
