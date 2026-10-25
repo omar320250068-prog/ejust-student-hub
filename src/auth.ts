@@ -1,16 +1,14 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
-const authOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
   ],
   trustHost: true,
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" as const },
-};
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "fallback_secret_key_for_edge",
+  session: { strategy: "jwt" },
+});
