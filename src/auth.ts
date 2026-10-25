@@ -1,7 +1,10 @@
+import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import type { NextAuthConfig } from "next-auth";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { db } from "@/db";
 
-export default {
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: DrizzleAdapter(db),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -11,4 +14,4 @@ export default {
   session: { strategy: "jwt" },
   trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-} satisfies NextAuthConfig;
+});
