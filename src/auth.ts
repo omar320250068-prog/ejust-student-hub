@@ -2,9 +2,6 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { recordAuthError } from "@/lib/auth-error-store";
 
-const FALLBACK_GOOGLE_CLIENT_ID =
-  "158525782998-965v4n6tq63gt9sp5h4u2veh7l0jjpvl.apps.googleusercontent.com";
-
 const URL_ENV_KEYS = ["AUTH_URL", "NEXTAUTH_URL"] as const;
 
 function normalizeUrlEnv() {
@@ -13,8 +10,7 @@ function normalizeUrlEnv() {
     if (!raw || raw.trim() === "") continue;
 
     try {
-      new URL(raw.trim());
-      process.env[key] = raw.trim();
+      process.env[key] = new URL(raw.trim()).toString();
       continue;
     } catch {}
 
@@ -33,13 +29,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
       clientId: (
-        process.env.GOOGLE_CLIENT_ID ||
-        process.env.AUTH_GOOGLE_ID ||
-        FALLBACK_GOOGLE_CLIENT_ID
-      ).trim(),
+        process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID
+      )?.trim(),
       clientSecret: (
-        process.env.GOOGLE_CLIENT_SECRET ||
-        process.env.AUTH_GOOGLE_SECRET
+        process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET
       )?.trim(),
     }),
   ],
