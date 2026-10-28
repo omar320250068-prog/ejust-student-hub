@@ -8,6 +8,13 @@
       "when": 1792611338170,
       "tag": "0000_productive_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793099861903,
+      "tag": "0001_add_auth_profile_fields",
+      "breakpoints": true
     }
   ]
 }

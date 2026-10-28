@@ -1,15 +1,53 @@
-import { pgTable, text, timestamp, integer, primaryKey, json } from "drizzle-orm/pg-core";
+import {
+  integer,
+  json,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+
+export const userRole = pgEnum("user_role", ["STUDENT", "ADMIN"]);
 
 export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  passwordHash: text("passwordHash"),
+  role: userRole("role").notNull().default("STUDENT"),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
+
+export const studentProfiles = pgTable(
+  "student_profile",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    studentId: text("studentId").notNull(),
+    age: integer("age").notNull(),
+    gender: text("gender").notNull(),
+    faculty: text("faculty").notNull(),
+    academicYear: text("academicYear").notNull(),
+    group: text("group").notNull(),
+    section: text("section").notNull(),
+  },
+  (profile) => [
+    unique("student_profile_userId_unique").on(profile.userId),
+    unique("student_profile_studentId_unique").on(profile.studentId),
+  ],
+);
 
 export const accounts = pgTable(
   "account",

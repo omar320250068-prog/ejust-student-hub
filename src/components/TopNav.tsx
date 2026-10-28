@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText } from "lucide-react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 const LINKS = [
   { href: "/today", label: "Today", icon: LayoutDashboard },
@@ -54,13 +54,13 @@ export default function TopNav() {
           <div className="h-7 w-7 animate-pulse rounded-full bg-gray-200" />
         )}
         {status === "unauthenticated" && (
-          <button
-            onClick={() => signIn("google")}
+          <Link
+            href="/login"
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
           >
             <LogIn size={15} />
             Sign in
-          </button>
+          </Link>
         )}
         {status === "authenticated" && session?.user && (
           <div className="flex items-center gap-2">
