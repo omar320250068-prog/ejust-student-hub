@@ -1,271 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession, signIn } from "next-auth/react";
-import { PlusCircle, Send, Loader2, Clock, CheckCircle, XCircle } from "lucide-react";
-
-const CATEGORIES = [
-  { value: "academic-calendar", label: "Academic Calendar" },
-  { value: "exam-schedule", label: "Exam Schedule" },
-  { value: "scholarships", label: "Scholarships" },
-  { value: "courses", label: "Course Catalog" },
-  { value: "faculty", label: "Faculty Info" },
-  { value: "campus-locations", label: "Campus Locations/POIs" },
-  { value: "announcements", label: "Announcements" },
-  { value: "other", label: "Other / General" },
-] as const;
-
-type Category = (typeof CATEGORIES)[number]["value"];
-
-type Submission = {
-  id: string;
-  category: string;
-  title: string;
-  data: any;
-  status: "pending" | "approved" | "rejected";
-  notes: string | null;
-  createdAt: string;
-};
+import { FileUp, Loader2, Send, Sparkles } from "lucide-react";
+import { MotionSection, ServicePageShell } from "@/components/ServicePageShell";
 
 export default function ContributePage() {
-  const { data: session, status } = useSession();
-  const [category, setCategory] = useState<Category>("academic-calendar");
+  const { status } = useSession();
+  const [category, setCategory] = useState("Lecture notes");
   const [title, setTitle] = useState("");
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [rawJson, setRawJson] = useState("");
-  const [useRaw, setUseRaw] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [subs, setSubs] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status !== "authenticated") {
-      setLoading(false);
+  function acceptFile(nextFile: File | undefined) {
+    if (!nextFile) return;
+    if (nextFile.size > 10 * 1024 * 1024) {
+      setMessage("Please choose a file smaller than 10 MB.");
       return;
     }
-    fetch("/api/contributions")
-      .then((r) => r.json())
-      .then((j) => setSubs(j.contributions || []))
-      .finally(() => setLoading(false));
-  }, [status]);
+    setFile(nextFile);
+    setMessage(null);
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (status !== "authenticated") return signIn("google");
-
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (status !== "authenticated") {
+      await signIn("google");
+      return;
+    }
+    if (!title.trim() || !file) {
+      setMessage("Add a title and choose a file before submitting.");
+      return;
+    }
     setSubmitting(true);
-    setMsg(null);
-
+    setMessage(null);
     try {
-      let data: any = {};
-
-      if (useRaw) {
-        try {
-          data = JSON.parse(rawJson || "{}");
-        } catch {
-          setMsg("Invalid JSON in raw data field");
-          setSubmitting(false);
-          return;
-        }
-      } else {
-        data = { ...form };
-      }
-
-      const res = await fetch("/api/contributions", {
+      const response = await fetch("/api/contributions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, title, data }),
+        body: JSON.stringify({ category: category.toLowerCase().replaceAll(" ", "-"), title: title.trim(), data: { fileName: file.name, size: file.size, type: file.type } }),
       });
-
-      if (!res.ok) throw new Error("Failed");
-
+      if (!response.ok) throw new Error("Submission failed");
       setTitle("");
-      setForm({});
-      setRawJson("");
-      setMsg("Submitted successfully. It will be reviewed for inclusion.");
-      const r = await fetch("/api/contributions");
-      const j = await r.json();
-      setSubs(j.contributions || []);
+      setFile(null);
+      setMessage("Submitted for review. Your 25 merit points are pending approval.");
     } catch {
-      setMsg("Something went wrong. Try again.");
+      setMessage("We could not submit that resource. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const renderFields = () => {
-    switch (category) {
-      case "academic-calendar":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Semester (e.g. Fall 2026)" value={form.semester || ""} onChange={(e) => setForm({ ...form, semester: e.target.value })} />
-            <input className="input" placeholder="Event Name" value={form.event || ""} onChange={(e) => setForm({ ...form, event: e.target.value })} />
-            <input type="date" className="input" value={form.startDate || ""} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
-            <input type="date" className="input" value={form.endDate || ""} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
-            <textarea className="input md:col-span-2" rows={3} placeholder="Notes/Details" value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </div>
-        );
-      case "exam-schedule":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Course Code" value={form.courseCode || ""} onChange={(e) => setForm({ ...form, courseCode: e.target.value })} />
-            <input className="input" placeholder="Course Title" value={form.courseTitle || ""} onChange={(e) => setForm({ ...form, courseTitle: e.target.value })} />
-            <input type="date" className="input" value={form.date || ""} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            <input className="input" placeholder="Time (e.g. 09:00 - 12:00)" value={form.time || ""} onChange={(e) => setForm({ ...form, time: e.target.value })} />
-            <input className="input md:col-span-2" placeholder="Location/Hall" value={form.location || ""} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-          </div>
-        );
-      case "scholarships":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Scholarship Name" value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="input" placeholder="Provider/Source" value={form.provider || ""} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
-            <input className="input" placeholder="Deadline (YYYY-MM-DD)" value={form.deadline || ""} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
-            <input className="input" placeholder="Eligibility" value={form.eligibility || ""} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
-            <textarea className="input md:col-span-2" rows={4} placeholder="Description & How to Apply (link if available)" value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-        );
-      case "courses":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Course Code" value={form.code || ""} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-            <input className="input" placeholder="Course Title" value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <input className="input" placeholder="Department" value={form.department || ""} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-            <input className="input" placeholder="Credits (e.g. 3)" value={form.credits || ""} onChange={(e) => setForm({ ...form, credits: e.target.value })} />
-            <textarea className="input md:col-span-2" rows={3} placeholder="Syllabus/Notes" value={form.syllabus || ""} onChange={(e) => setForm({ ...form, syllabus: e.target.value })} />
-          </div>
-        );
-      case "faculty":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Full Name" value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="input" placeholder="Title/Position" value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <input className="input" placeholder="Department/School" value={form.department || ""} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-            <input className="input" placeholder="Email (if known)" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            <textarea className="input md:col-span-2" rows={3} placeholder="Research/Office/Other Info" value={form.info || ""} onChange={(e) => setForm({ ...form, info: e.target.value })} />
-          </div>
-        );
-      case "campus-locations":
-        return (
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" placeholder="Location Name" value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="input" placeholder="Type (Building/Lab/Cafe/Office)" value={form.type || ""} onChange={(e) => setForm({ ...form, type: e.target.value })} />
-            <input className="input" placeholder="Building/Number" value={form.building || ""} onChange={(e) => setForm({ ...form, building: e.target.value })} />
-            <input className="input" placeholder="Floor/Room" value={form.room || ""} onChange={(e) => setForm({ ...form, room: e.target.value })} />
-            <textarea className="input md:col-span-2" rows={3} placeholder="Description/How to find it" value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-        );
-      case "announcements":
-        return (
-          <div className="grid gap-3">
-            <input className="input" placeholder="Announcement Title" value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <input className="input" placeholder="Source/Date (YYYY-MM-DD)" value={form.date || ""} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            <textarea className="input" rows={4} placeholder="Announcement Content" value={form.content || ""} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-          </div>
-        );
-      default:
-        return (
-          <textarea className="input" rows={4} placeholder="Any relevant details" value={form.details || ""} onChange={(e) => setForm({ ...form, details: e.target.value })} />
-        );
-    }
-  };
-
-  const statusIcon = (s: string) => {
-    if (s === "approved") return <CheckCircle size={16} className="text-green-600" />;
-    if (s === "rejected") return <XCircle size={16} className="text-red-600" />;
-    return <Clock size={16} className="text-amber-500" />;
-  };
+  }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6 flex items-center gap-2">
-        <PlusCircle className="h-6 w-6 text-blue-600" />
-        <h1 className="text-xl font-semibold text-gray-900">Contribute Data</h1>
-      </div>
-      <p className="mb-6 text-sm text-gray-600">
-        Help improve the EJUST Student Hub by submitting accurate information. Your submissions will be reviewed and used to expand official data.
-      </p>
-
-      {status !== "authenticated" ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-          <p className="mb-3 text-sm text-gray-600">Sign in with Google to submit data.</p>
-          <button onClick={() => signIn("google")} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            Sign in with Google
-          </button>
-        </div>
-      ) : (
-        <>
-          <form onSubmit={handleSubmit} className="mb-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
-                <select className="input" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Submission Title</label>
-                <input className="input" required placeholder="e.g. Fall 2026 Exam Schedule" value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Data</label>
-                <button type="button" onClick={() => setUseRaw(!useRaw)} className="text-xs text-blue-600 hover:underline">
-                  {useRaw ? "Use form fields" : "Use raw JSON"}
-                </button>
-              </div>
-              {useRaw ? <textarea className="input" rows={8} placeholder='{"key": "value"}' value={rawJson} onChange={(e) => setRawJson(e.target.value)} /> : renderFields()}
-            </div>
-
-            <button disabled={submitting} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              Submit
-            </button>
-            {msg && <p className="mt-2 text-sm text-gray-600">{msg}</p>}
-          </form>
-
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-gray-900">My Submissions</h2>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {loading ? (
-                <div className="flex items-center justify-center py-6 text-sm text-gray-500"><Loader2 size={16} className="mr-2 animate-spin" /> Loading...</div>
-              ) : subs.length === 0 ? (
-                <div className="py-6 text-center text-sm text-gray-500">No submissions yet.</div>
-              ) : (
-                subs.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between px-5 py-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900">{s.title}</p>
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{s.category}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">{new Date(s.createdAt).toLocaleString()}</p>
-                      {s.notes && <p className="mt-1 text-xs text-gray-600">Note: {s.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs capitalize text-gray-600">
-                      {statusIcon(s.status)}
-                      {s.status}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+    <ServicePageShell eyebrow="Community contributions" title="Share what made the semester easier." description="Upload a useful note, exam archive, or campus update. Every approved contribution helps the next student and earns merit points.">
+      <MotionSection className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.75fr]" delay={0.14}>
+        <form onSubmit={submit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 sm:col-span-2">Resource title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. CSE201 final revision pack" className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" /></label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700">Category<select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-blue-400"><option>Lecture notes</option><option>Past papers</option><option>Courseware</option><option>Campus update</option></select></label>
           </div>
-        </>
-      )}
-
-      <style jsx global>{`
-        .input {
-          @apply w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
-        }
-      `}</style>
-    </main>
+          <label onDragEnter={() => setDragging(true)} onDragLeave={() => setDragging(false)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); acceptFile(event.dataTransfer.files[0]); }} className={`mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 text-center transition ${dragging ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50 hover:border-blue-300"}`}>
+            <FileUp size={24} className="text-blue-600" />
+            <span className="mt-3 text-sm font-semibold text-gray-800">{file ? file.name : "Drop a file here or browse"}</span>
+            <span className="mt-1 text-xs text-gray-500">PDF, DOCX, PPTX or image · max 10 MB</span>
+            <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" onChange={(event) => acceptFile(event.target.files?.[0])} className="sr-only" />
+          </label>
+          <button type="submit" disabled={submitting} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}{submitting ? "Sending…" : "Submit for review"}</button>
+          {message && <p role="status" className="mt-3 text-sm text-gray-600">{message}</p>}
+        </form>
+        <aside className="rounded-2xl bg-blue-950 p-6 text-white">
+          <Sparkles size={20} className="text-blue-300" />
+          <h2 className="mt-5 text-xl font-semibold">Your contribution balance</h2>
+          <p className="mt-2 text-sm leading-6 text-blue-100/70">Approved resources earn points that show your impact across the student hub.</p>
+          <p className="mt-8 text-5xl font-bold">180</p>
+          <p className="mt-1 text-sm text-blue-200">merit points</p>
+          <div className="mt-7 border-t border-white/10 pt-4 text-xs text-blue-100/70"><p>+25 points per approved upload</p><p className="mt-2">Reviews usually take 1–2 days</p></div>
+        </aside>
+      </MotionSection>
+    </ServicePageShell>
   );
 }

@@ -22,6 +22,7 @@ export const users = pgTable("user", {
   image: text("image"),
   passwordHash: text("passwordHash"),
   role: userRole("role").notNull().default("STUDENT"),
+  meritPoints: integer("meritPoints").notNull().default(0),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
@@ -122,6 +123,11 @@ export const contributions = pgTable("contribution", {
   data: json("data").$type<Record<string, unknown> | unknown>().notNull(),
   status: text("status").notNull().default("pending"),
   notes: text("notes"),
+  meritPoints: integer("meritPoints").notNull().default(0),
+  reviewedBy: text("reviewedBy").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  reviewedAt: timestamp("reviewedAt", { mode: "date" }),
   createdAt: timestamp("createdAt", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),

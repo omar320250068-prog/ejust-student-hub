@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { contributions } from "@/db/schema";
+import { meritForCategory } from "@/lib/contribution-scan";
 import { desc, eq } from "drizzle-orm";
 
 export async function GET() {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
       title,
       data,
       status: "pending",
+      meritPoints: meritForCategory(String(category)),
       updatedAt: new Date(),
       createdAt: new Date(),
     });
