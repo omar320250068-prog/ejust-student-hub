@@ -4,6 +4,7 @@ import TopNav from "@/components/TopNav";
 import PrintHeader from "@/components/PrintHeader";
 import "./globals.css";
 import { Providers } from "./providers";
+import CampusBackground from "@/components/CampusBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +30,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <Providers>
-          <PrintHeader />
-          <TopNav />
-          <div className="flex flex-1 flex-col print:flex-none">{children}</div>
+          <CampusBackground />
+          <div className="relative z-10 flex min-h-full flex-1 flex-col">
+            <PrintHeader />
+            <TopNav />
+            <div className="flex flex-1 flex-col print:flex-none">{children}</div>
+          </div>
         </Providers>
       </body>
     </html>

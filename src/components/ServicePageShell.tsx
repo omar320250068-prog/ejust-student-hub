@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/lib/i18n";
 
 export function ServicePageShell({
   eyebrow,
@@ -15,6 +16,7 @@ export function ServicePageShell({
   description: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <motion.div
@@ -27,7 +29,7 @@ export function ServicePageShell({
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
           <ArrowLeft size={15} />
-          Back to Dashboard
+          {t("services.back")}
         </Link>
         <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-blue-600">
           {eyebrow}
