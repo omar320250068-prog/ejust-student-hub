@@ -20,6 +20,8 @@ import {
   type ExamType,
 } from "@/lib/exams";
 import { downloadEventIcs, examEvent } from "@/lib/ics";
+import { useLanguage } from "@/lib/i18n";
+import { StudyShell } from "@/components/ExperienceShells";
 
 const STORAGE_KEY = "ejust-exams-v1";
 
@@ -40,10 +42,13 @@ function buildSeed(now: Date): Exam[] {
 }
 
 export default function ExamsPage() {
+  const { t } = useLanguage();
   const [exams, setExams] = useState<Exam[]>([]);
   const [dailyHours, setDailyHours] = useState(3);
   const [mounted, setMounted] = useState(false);
   const [nowMs, setNowMs] = useState<number | null>(null);
+  const [seatCode, setSeatCode] = useState("");
+  const [seatResult, setSeatResult] = useState<string | null>(null);
   const [form, setForm] = useState({
     courseCode: "",
     title: "",
@@ -71,6 +76,11 @@ export default function ExamsPage() {
       setExams(buildSeed(new Date()));
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -124,14 +134,17 @@ export default function ExamsPage() {
     setForm((f) => ({ ...f, courseCode: "", title: "", date: "" }));
   }
 
+  const nextExam = upcoming[0];
+  const countdown = nextExam
+    ? Math.max(0, new Date(nextExam.exam.date).getTime() - (nowMs ?? Date.now()))
+    : 0;
+  const countdownLabel = `${Math.floor(countdown / 86_400_000)}d ${String(Math.floor(countdown / 3_600_000) % 24).padStart(2, "0")}h ${String(Math.floor(countdown / 60_000) % 60).padStart(2, "0")}m`;
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
+    <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadEventIcs(upcoming.map(({ exam }) => examEvent(exam)), "ejust-exams.ics", "EJUST Exams")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.export")}</button>}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-            <AlarmClock size={20} className="text-blue-600" />
-            Exam Countdown &amp; Study Planner
-          </h1>
+          <h1 className="sr-only">Exam Countdown &amp; Study Planner</h1>
           <p className="mt-1 text-sm text-gray-500">
             Track deadlines and get a suggested daily study split based on urgency, weight, and
             difficulty.
@@ -150,24 +163,15 @@ export default function ExamsPage() {
               className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm outline-none focus:border-blue-400"
             />
           </label>
-          <button
-            onClick={() =>
-              downloadEventIcs(
-                upcoming.map(({ exam }) => examEvent(exam)),
-                "ejust-exams.ics",
-                "EJUST Exams"
-              )
-            }
-            disabled={upcoming.length === 0}
-            className="print:hidden flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
-          >
-            <CalendarPlus size={15} />
-            Export .ics
-          </button>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <section className="mt-8 grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? "Add an exam to start the clock."}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.hall")}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Hall A2</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Building E</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Floor 2</span></div></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.seat")}</p><div className="mt-3 flex gap-2"><input value={seatCode} onChange={(event) => setSeatCode(event.target.value)} placeholder="Student ID" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" /><button onClick={() => setSeatResult(seatCode ? "Hall A2 · Row 4 · Seat 18" : "Enter your student ID")} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white dark:bg-cyan-300 dark:text-slate-950">{t("study.lookup")}</button></div>{seatResult && <p className="mt-2 text-xs text-cyan-700 dark:text-cyan-300">{seatResult}</p>}</div>
+      </section>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {upcoming.map(({ exam, days }) => (
           <article
             key={exam.id}
@@ -335,7 +339,7 @@ export default function ExamsPage() {
           </button>
         </form>
       </section>
-    </main>
+    </StudyShell>
   );
 }
 

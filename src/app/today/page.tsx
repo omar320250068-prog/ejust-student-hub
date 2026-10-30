@@ -2,54 +2,31 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
-  Map,
-  MapPin,
-  GraduationCap,
-  CalendarDays,
-  AlarmClock,
-  Award,
-  UtensilsCrossed,
-  ArrowRight,
-  Sun,
-  BookOpen,
-  Wallet,
-  Coffee,
+  AlarmClock, ArrowUpRight, Award, BookOpen, CalendarDays, Coffee,
+  GraduationCap, LayoutGrid, Map, MapPin, ShieldCheck, Sparkles, Sun,
+  UtensilsCrossed, Wallet,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
 import { computeStats, formatGpa, type Course } from "@/lib/gpa";
 import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
 import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
 import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafeteria";
+import CampusBackground from "@/components/CampusBackground";
 
 const KEYS = {
-  timetable: "ejust-timetable-v1",
-  gpa: "ejust-gpa-v1",
-  exams: "ejust-exams-v1",
-  cafeteria: "ejust-cafeteria-v1",
-  savedScholarships: "ejust-scholarships-saved-v1",
+  timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
+  cafeteria: "ejust-cafeteria-v1", savedScholarships: "ejust-scholarships-saved-v1",
 };
 
-interface GpaData {
-  courses: Course[];
-  targetGpa: number;
-  degreeCredits: number;
-}
-interface ExamsData {
-  exams: Exam[];
-  dailyHours: number;
-}
-interface CafeteriaData {
-  trays: Partial<Record<DayName, string[]>>;
-  budget: number;
-}
-
+interface GpaData { courses: Course[]; targetGpa: number; degreeCredits: number }
+interface ExamsData { exams: Exam[]; dailyHours: number }
+interface CafeteriaData { trays: Partial<Record<DayName, string[]>>; budget: number }
 interface Snapshot {
-  timetable: ClassBlock[];
-  gpa: GpaData | null;
-  exams: ExamsData | null;
-  cafeteria: CafeteriaData | null;
-  saved: string[];
+  timetable: ClassBlock[]; gpa: GpaData | null; exams: ExamsData | null;
+  cafeteria: CafeteriaData | null; saved: string[];
 }
 
 function readJson<T>(key: string): T | null {
@@ -62,13 +39,14 @@ function readJson<T>(key: string): T | null {
 }
 
 export default function TodayPage() {
-  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const { locale, t } = useLanguage();
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setNowMs(Date.now());
-      setSnap({
+      setSnapshot({
         timetable: readJson<ClassBlock[]>(KEYS.timetable) ?? [],
         gpa: readJson<GpaData>(KEYS.gpa),
         exams: readJson<ExamsData>(KEYS.exams),
@@ -80,333 +58,105 @@ export default function TodayPage() {
   }, []);
 
   const model = useMemo(() => {
-    if (nowMs === null || snap === null) return null;
+    if (nowMs === null || snapshot === null) return null;
     const now = new Date(nowMs);
-    const dayIndex = now.getDay();
-    const ttDay = TT_DAYS[dayIndex];
-    const cafDay = CAF_DAYS[dayIndex];
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-
-    const classes = snap.timetable
-      .filter((b) => b.day === ttDay)
-      .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-    const nextClass = classes.find((b) => toMinutes(b.start) >= nowMin) ?? null;
-    const minutesToNext = nextClass ? toMinutes(nextClass.start) - nowMin : null;
-
-    const exams = snap.exams?.exams ?? [];
-    const dailyHours = snap.exams?.dailyHours ?? 3;
-    const plan = allocateStudy(exams, dailyHours, now);
-    const nextExam = plan[0] ?? null;
-
-    const gpa = snap.gpa
-      ? computeStats(snap.gpa.courses, snap.gpa.targetGpa ?? 3.5)
-      : null;
-
-    const savedSet = new Set(snap.saved);
-    const openScholarships = SCHOLARSHIPS.map((s) => ({
-      s,
-      days: daysUntil(s.deadline, now),
-    })).filter((x) => x.days >= 0);
-    const savedOpen = openScholarships
-      .filter((x) => savedSet.has(x.s.id))
-      .sort((a, b) => a.days - b.days);
-    const allOpen = [...openScholarships].sort((a, b) => a.days - b.days);
-    const scholarship = (savedOpen[0] ?? allOpen[0]) ?? null;
-
-    const tray = snap.cafeteria?.trays?.[cafDay] ?? [];
+    const classes = snapshot.timetable
+      .filter((item) => item.day === TT_DAYS[now.getDay()])
+      .toSorted((a, b) => toMinutes(a.start) - toMinutes(b.start));
+    const nextClass = classes.find((item) => toMinutes(item.start) >= now.getHours() * 60 + now.getMinutes()) ?? null;
+    const nextExam = allocateStudy(snapshot.exams?.exams ?? [], snapshot.exams?.dailyHours ?? 3, now)[0] ?? null;
+    const gpa = snapshot.gpa ? computeStats(snapshot.gpa.courses, snapshot.gpa.targetGpa ?? 3.5) : null;
+    const saved = new Set(snapshot.saved);
+    const open = SCHOLARSHIPS.map((scholarship) => ({ scholarship, days: daysUntil(scholarship.deadline, now) }))
+      .filter((item) => item.days >= 0)
+      .sort((a, b) => (saved.has(a.scholarship.id) ? -1 : 0) - (saved.has(b.scholarship.id) ? -1 : 0) || a.days - b.days);
+    const cafDay = CAF_DAYS[now.getDay()];
+    const tray = snapshot.cafeteria?.trays?.[cafDay] ?? [];
     const trayTotal = tray.reduce((sum, id) => sum + (itemById(id)?.price ?? 0), 0);
-    const dayBudget = snap.cafeteria?.budget ?? null;
-
+    const hour = now.getHours();
+    const greetingKey = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
     return {
-      greeting:
-        now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening",
-      dateLabel: now.toLocaleDateString("en-GB", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      classes,
-      nextClass,
-      minutesToNext,
-      nextExam,
-      gpa,
-      targetGpa: snap.gpa?.targetGpa ?? null,
-      scholarship,
-      trayTotal,
-      trayCount: tray.length,
-      dayBudget,
-      cafDay,
+      greeting: t(`dashboard.${greetingKey}`),
+      date: now.toLocaleDateString(locale === "ar" ? "ar-EG" : locale === "ja" ? "ja-JP" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      classes, nextClass, nextExam, gpa, targetGpa: snapshot.gpa?.targetGpa ?? null,
+      scholarship: open[0] ?? null, cafDay, trayCount: tray.length, trayTotal,
+      budget: snapshot.cafeteria?.budget ?? null,
     };
-  }, [snap, nowMs]);
+  }, [locale, nowMs, snapshot, t]);
+
+  const launches = [
+    { href: "/map", key: "map" as const, icon: Map, color: "from-cyan-400 to-blue-500" },
+    { href: "/gpa", key: "gpa" as const, icon: GraduationCap, color: "from-violet-400 to-fuchsia-500" },
+    { href: "/services/notes", key: "notes" as const, icon: BookOpen, color: "from-amber-300 to-orange-500" },
+    { href: "/exams", key: "exams" as const, icon: CalendarDays, color: "from-rose-400 to-red-500" },
+    { href: "/cafeteria", key: "cafeteria" as const, icon: Coffee, color: "from-emerald-300 to-teal-500" },
+    { href: "/admin", key: "admin" as const, icon: ShieldCheck, color: "from-slate-300 to-slate-500" },
+  ];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
-      <div className="flex items-center gap-2">
-        <Sun size={20} className="text-amber-500" />
-        <h1 className="text-xl font-bold text-gray-900">
-          {model ? `${model.greeting}` : "Today"}
-        </h1>
-      </div>
-      <p className="mt-1 text-sm text-gray-500">
-        {model ? model.dateLabel : "Loading your day…"}
-      </p>
+    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-950/75 text-white">
+      <CampusBackground image="/images/campus/hero-sunset.jpg.png" />
+      <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative overflow-hidden rounded-[2rem] border border-white/25 bg-white/10 p-6 shadow-2xl shadow-slate-950/20 backdrop-blur-md sm:p-9">
+          <div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="relative max-w-3xl">
+            <div className="flex items-center gap-2 text-sm text-cyan-100"><Sun size={17} className="text-amber-300" /><span>{model?.date ?? "Loading your day…"}</span></div>
+            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-6xl">{model?.greeting ?? t("dashboard.title")}</h1>
+            <p className="mt-4 max-w-xl text-lg leading-8 text-slate-200">{t("dashboard.welcome")}</p>
+            <p className="mt-2 text-sm text-slate-300">{t("dashboard.date")}</p>
+          </div>
+          <div className="relative mt-8 grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
+            <Metric label={t("dashboard.classes")} value={model ? String(model.classes.length) : "—"} />
+            <Metric label={t("dashboard.nextExam")} value={model?.nextExam ? `${model.nextExam.days}d` : "—"} />
+            <Metric label={t("dashboard.gpa")} value={model?.gpa?.currentGpa ? formatGpa(model.gpa.currentGpa) : "—"} />
+            <Metric label={t("dashboard.food")} value={model?.budget !== null && model?.budget !== undefined ? formatEgp(model.trayTotal) : "—"} />
+          </div>
+        </motion.section>
 
-      {!model ? (
-        <p className="mt-6 text-sm text-gray-400">Loading your saved plans…</p>
-      ) : (
-        <>
-          <section className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <Card
-              icon={<CalendarDays size={15} className="text-blue-600" />}
-              title="Today's classes"
-              href="/timetable"
-              linkLabel="Open timetable"
-            >
-              {model.classes.length === 0 ? (
-                <Empty text="No classes saved for today." href="/timetable" cta="Build timetable" />
-              ) : (
-                <ul className="space-y-1.5">
-                  {model.classes.slice(0, 4).map((c) => (
-                    <li key={c.id} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="w-1 shrink-0 self-stretch rounded-full bg-blue-400"
-                        style={{ minHeight: 18, backgroundColor: c.color || undefined }}
-                      />
-                      <span className="w-20 shrink-0 font-mono text-[11px] text-gray-500">
-                        {c.start}–{c.end}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-gray-800">
-                        {c.courseCode} {c.title}
-                      </span>
-                    </li>
-                  ))}
-                  {model.classes.length > 4 && (
-                    <li className="text-[11px] text-gray-400">+{model.classes.length - 4} more</li>
-                  )}
-                </ul>
-              )}
-              {model.nextClass && model.minutesToNext !== null && (
-                <p className="mt-2 flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[11px] text-blue-700">
-                  <AlarmClock size={12} />
-                  Next: {model.nextClass.courseCode} in{" "}
-                  {model.minutesToNext < 60
-                    ? `${model.minutesToNext} min`
-                    : `${Math.floor(model.minutesToNext / 60)}h ${model.minutesToNext % 60}m`}
-                </p>
-              )}
-            </Card>
+        <section className="mt-6">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div><h2 className="flex items-center gap-2 text-xl font-semibold text-white"><Sparkles size={18} className="text-cyan-300" />{t("dashboard.launch")}</h2><p className="mt-1 text-sm text-slate-300">{t("dashboard.launchHint")}</p></div>
+            <LayoutGrid size={18} className="text-slate-400" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {launches.map(({ href, key, icon: Icon, color }, index) => (
+              <motion.div key={key} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06, duration: 0.35 }}>
+                <Link href={href} className="group flex min-h-32 items-end justify-between rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-white/40 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-cyan-300">
+                  <div><span className={`mb-7 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${color} text-slate-950 shadow-lg`}><Icon size={20} /></span><h3 className="font-semibold text-white">{t(`dashboard.${key}`)}</h3><p className="mt-1 text-xs text-slate-300">{t(`dashboard.${key}Desc`)}</p></div>
+                  <ArrowUpRight size={19} className="text-slate-400 transition group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-white" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
-            <Card
-              icon={<AlarmClock size={15} className="text-red-500" />}
-              title="Next exam"
-              href="/exams"
-              linkLabel="Study plan"
-            >
-              {!model.nextExam ? (
-                <Empty text="No upcoming exams tracked." href="/exams" cta="Add an exam" />
-              ) : (
-                <div>
-                  <p className="text-xs text-gray-500">{model.nextExam.exam.courseCode}</p>
-                  <p className="truncate text-sm font-semibold text-gray-900">
-                    {model.nextExam.exam.title}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {formatExamDate(model.nextExam.exam.date)}
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        model.nextExam.days <= 3
-                          ? "bg-red-600 text-white"
-                          : model.nextExam.days <= 7
-                            ? "bg-amber-500 text-white"
-                            : "bg-blue-50 text-blue-700"
-                      }`}
-                    >
-                      {model.nextExam.days === 0 ? "today" : `${model.nextExam.days} days`}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                      <BookOpen size={11} />
-                      {model.nextExam.perDayMin} min/day suggested
-                    </span>
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card
-              icon={<GraduationCap size={15} className="text-violet-600" />}
-              title="GPA snapshot"
-              href="/gpa"
-              linkLabel="Degree tracker"
-            >
-              {!model.gpa || model.gpa.currentGpa === null ? (
-                <Empty text="No graded courses yet." href="/gpa" cta="Set up GPA" />
-              ) : (
-                <div className="flex items-end justify-between gap-2">
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{formatGpa(model.gpa.currentGpa)}</p>
-                    <p className="text-[11px] text-gray-500">
-                      {model.gpa.completedCredits} credits · target {formatGpa(model.targetGpa)}
-                    </p>
-                  </div>
-                  {model.gpa.remainingCredits > 0 && model.gpa.requiredAverage !== null && (
-                    <p className="text-right text-[11px] text-gray-500">
-                      need{" "}
-                      <span
-                        className={`font-semibold ${
-                          model.gpa.achievable ? "text-emerald-600" : "text-red-600"
-                        }`}
-                      >
-                        {formatGpa(model.gpa.requiredAverage)}
-                      </span>
-                      <br />
-                      avg in {model.gpa.remainingCredits} left
-                    </p>
-                  )}
-                </div>
-              )}
-            </Card>
-
-            <Card
-              icon={<Award size={15} className="text-amber-600" />}
-              title="Scholarship deadline"
-              href="/scholarships"
-              linkLabel="All scholarships"
-            >
-              {!model.scholarship ? (
-                <Empty text="No open deadlines." href="/scholarships" cta="Browse" />
-              ) : (
-                <div>
-                  <p className="truncate text-sm font-semibold text-gray-900">
-                    {model.scholarship.s.name}
-                  </p>
-                  <p className="text-[11px] text-gray-500">
-                    {model.scholarship.s.country} · {formatDeadline(model.scholarship.s.deadline)}
-                  </p>
-                  <span
-                    className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      model.scholarship.days <= 30
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {model.scholarship.days} days left
-                  </span>
-                </div>
-              )}
-            </Card>
-
-            <Card
-              icon={<UtensilsCrossed size={15} className="text-emerald-600" />}
-              title="Food today"
-              href="/cafeteria"
-              linkLabel="Meal planner"
-            >
-              {model.dayBudget === null ? (
-                <Empty text="No tray or budget yet." href="/cafeteria" cta="Plan meals" />
-              ) : model.trayCount === 0 ? (
-                <Empty text={`Nothing planned for ${model.cafDay}.`} href="/cafeteria" cta="Plan today's tray" />
-              ) : (
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{formatEgp(model.trayTotal)}</p>
-                  <p className="text-[11px] text-gray-500">
-                    {model.trayCount} item{model.trayCount > 1 ? "s" : ""} ·{" "}
-                    {model.trayTotal > model.dayBudget
-                      ? `${formatEgp(model.trayTotal - model.dayBudget)} over budget`
-                      : `${formatEgp(model.dayBudget - model.trayTotal)} left of ${formatEgp(model.dayBudget)}`}
-                  </p>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className={`h-full rounded-full ${
-                        model.trayTotal > model.dayBudget ? "bg-red-500" : "bg-emerald-500"
-                      }`}
-                      style={{
-                        width: `${Math.min(100, (model.trayTotal / model.dayBudget) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card
-              icon={<Wallet size={15} className="text-gray-600" />}
-              title="Campus quick access"
-              href="/"
-              linkLabel="Master plan"
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                <QuickLink href="/" icon={<Map size={13} />} label="Master Plan" />
-                <QuickLink href="/map" icon={<MapPin size={13} />} label="GPS Map" />
-                <QuickLink href="/timetable" icon={<CalendarDays size={13} />} label="Timetable" />
-                <QuickLink href="/exams" icon={<AlarmClock size={13} />} label="Exams" />
-                <QuickLink href="/scholarships" icon={<Award size={13} />} label="Scholarships" />
-                <QuickLink href="/cafeteria" icon={<Coffee size={13} />} label="Cafeteria" />
-              </div>
-            </Card>
+        {model && (
+          <section className="mt-6 grid gap-3 lg:grid-cols-3">
+            <Insight icon={<CalendarDays size={16} />} title={t("dashboard.classes")}>
+              {model.classes.length ? <div className="space-y-2">{model.classes.slice(0, 3).map((item) => <div key={item.id} className="flex gap-3 text-sm"><span className="font-mono text-xs text-cyan-200">{item.start}</span><span className="truncate text-slate-200">{item.courseCode} {item.title}</span></div>)}</div> : <Empty href="/timetable" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+            </Insight>
+            <Insight icon={<AlarmClock size={16} />} title={t("dashboard.nextExam")}>
+              {model.nextExam ? <><p className="text-lg font-semibold text-white">{model.nextExam.exam.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextExam.exam.title}</p><p className="mt-3 text-xs text-amber-200">{formatExamDate(model.nextExam.exam.date)} · {model.nextExam.perDayMin} min/day</p></> : <Empty href="/exams" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+            </Insight>
+            <Insight icon={<Award size={16} />} title={t("dashboard.scholarship")}>
+              {model.scholarship ? <><p className="truncate text-lg font-semibold text-white">{model.scholarship.scholarship.name}</p><p className="mt-1 text-sm text-slate-300">{model.scholarship.scholarship.country} · {formatDeadline(model.scholarship.scholarship.deadline)}</p><p className="mt-3 text-xs text-amber-200">{model.scholarship.days} days left</p></> : <Empty href="/scholarships" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+            </Insight>
           </section>
-
-          <p className="mt-4 flex items-center gap-1 text-[11px] text-gray-400">
-            Everything here reads from the plans you saved — nothing leaves this device.
-          </p>
-        </>
-      )}
+        )}
+        <p className="mt-5 flex items-center gap-2 text-xs text-slate-300"><Wallet size={14} /> {t("dashboard.saved")}</p>
+      </div>
     </main>
   );
 }
 
-function Card({
-  icon,
-  title,
-  href,
-  linkLabel,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  href: string;
-  linkLabel: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col rounded-xl border border-gray-200 bg-white p-4">
-      <div className="flex items-center gap-1.5">
-        {icon}
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-      </div>
-      <div className="mt-2 flex-1">{children}</div>
-      <Link
-        href={href}
-        className="mt-3 flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700"
-      >
-        {linkLabel}
-        <ArrowRight size={11} />
-      </Link>
-    </section>
-  );
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-white/15 bg-black/10 px-3 py-2.5"><p className="text-[11px] text-slate-300">{label}</p><p className="mt-1 text-xl font-semibold text-white">{value}</p></div>;
 }
 
-function Empty({ text, href, cta }: { text: string; href: string; cta: string }) {
-  return (
-    <div className="text-xs text-gray-400">
-      <p>{text}</p>
-      <Link href={href} className="mt-1 inline-block text-[11px] font-medium text-blue-600">
-        {cta} →
-      </Link>
-    </div>
-  );
+function Insight({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return <article className="min-h-36 rounded-2xl border border-white/20 bg-slate-950/40 p-5 shadow-xl backdrop-blur-md"><h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">{icon}<span>{title}</span></h2><div className="mt-4">{children}</div></article>;
 }
 
-function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-1.5 rounded-lg border border-gray-100 px-2 py-1.5 text-[11px] font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-    >
-      {icon}
-      {label}
-    </Link>
-  );
+function Empty({ href, text, cta }: { href: string; text: string; cta: string }) {
+  return <div className="text-sm text-slate-400"><p>{text}</p><Link href={href} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-white">{cta}<ArrowUpRight size={13} /></Link></div>;
 }

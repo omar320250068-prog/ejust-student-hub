@@ -18,7 +18,8 @@ export function ServicePageShell({
 }) {
   const { t } = useLanguage();
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <main className="min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -26,20 +27,21 @@ export function ServicePageShell({
       >
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-cyan-600 dark:text-slate-400 dark:hover:text-cyan-300"
         >
           <ArrowLeft size={15} />
           {t("services.back")}
         </Link>
-        <p className="mt-7 text-xs font-semibold tracking-[0.16em] text-blue-600">
+        <p className="mt-8 text-xs font-semibold text-cyan-700 dark:text-cyan-300">
           {eyebrow}
         </p>
-        <h1 className="mt-2 max-w-3xl text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+        <h1 className="mt-2 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
           {title}
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">{description}</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
         {children}
       </motion.div>
+      </div>
     </main>
   );
 }

@@ -7,19 +7,18 @@ const routeImages: Array<[string, string]> = [
   ["/login", "/images/campus/main-gate.jpg.png"],
   ["/cafeteria", "/images/campus/night-campus.jpg.png"],
   ["/scholarships", "/images/campus/night-campus.jpg.png"],
-  ["/map", "/images/campus/architecture.jpg.png"],
 ];
 
-export default function CampusBackground() {
+export default function CampusBackground({ image }: { image?: string }) {
   const pathname = usePathname();
-  const image = routeImages.find(([route]) => pathname === route)?.[1];
-  if (!image) return null;
+  const resolvedImage = image ?? routeImages.find(([route]) => pathname === route)?.[1];
+  if (!resolvedImage) return null;
 
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat before:absolute before:inset-0 before:bg-white/75 before:backdrop-blur-[2px] dark:before:bg-slate-950/78 dark:before:backdrop-blur-md"
-      style={{ backgroundImage: `url("${image}")` }}
+      style={{ backgroundImage: `url("${resolvedImage}")` }}
     />
   );
 }

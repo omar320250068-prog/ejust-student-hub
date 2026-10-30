@@ -25,6 +25,8 @@ import {
   type LetterGrade,
 } from "@/lib/gpa";
 import { useUserData } from "@/hooks/useUserData";
+import { useLanguage } from "@/lib/i18n";
+import { StudyShell } from "@/components/ExperienceShells";
 
 const SEED_COURSES: Course[] = [
   { id: "s1", code: "MATH101", title: "Calculus I", credits: 4, semester: "Y1S1", status: "completed", grade: "A" },
@@ -46,6 +48,7 @@ const SEED_COURSES: Course[] = [
 ];
 
 export default function GpaPage() {
+  const { t } = useLanguage();
   const { data: saved, setData: saveData } = useUserData<{
     courses: Course[];
     targetGpa: number;
@@ -132,26 +135,25 @@ export default function GpaPage() {
       : courses.filter((c) => c.status === statusFilter);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
+    <StudyShell icon={<TrendingUp size={19} />} title={t("study.gpa")} description="Simulate target grades, track cumulative performance, and see how your degree is progressing." action={<PrintButton />}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">GPA Predictor &amp; Degree Tracker</h1>
+          <h1 className="sr-only">GPA Predictor &amp; Degree Tracker</h1>
           <p className="mt-1 text-sm text-gray-500">
             Forecast the grades you need to hit your target GPA and track degree
             progress. Scale: {Object.entries(GRADE_POINTS).map(([k, v]) => `${k}=${v.toFixed(1)}`).join(" · ")}
           </p>
         </div>
-        <PrintButton />
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard icon={<Award size={16} />} label="Current GPA (completed)" value={formatGpa(stats.currentGpa)} sub={`${stats.completedCredits} credits graded`} />
         <StatCard icon={<TrendingUp size={16} />} label="Forecast GPA (with expected)" value={formatGpa(stats.forecastGpa)} sub={`${stats.inProgressCredits} credits in progress`} />
         <StatCard icon={<Target size={16} />} label={`Needed for ${targetGpa.toFixed(2)}`} value={stats.remainingCredits > 0 ? (stats.requiredAverage !== null ? stats.requiredAverage.toFixed(2) : "—") : "Done"} sub={stats.remainingCredits > 0 ? (stats.achievable ? `across ${stats.remainingCredits} remaining credits` : "target not achievable") : "no remaining credits"} accent={!stats.achievable && stats.remainingCredits > 0 ? "red" : "blue"} />
         <StatCard icon={<BookOpen size={16} />} label="Degree Progress" value={`${Math.round(degreeProgress)}%`} sub={`${stats.completedCredits} / ${degreeCredits} credits`} />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+      <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
         <label className="flex items-center gap-2">
           <span className="text-gray-600">Target GPA</span>
           <input
@@ -179,7 +181,7 @@ export default function GpaPage() {
         </div>
       </div>
 
-      <section className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+      <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-sm font-semibold text-gray-900">GPA Progress by Semester</h2>
         <div className="mt-3 h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -196,7 +198,7 @@ export default function GpaPage() {
         </div>
       </section>
 
-      <section className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+      <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-gray-900">Courses ({courses.length})</h2>
           <div className="flex gap-1">
@@ -333,7 +335,7 @@ export default function GpaPage() {
           </button>
         </form>
       </section>
-    </main>
+    </StudyShell>
   );
 }
 
