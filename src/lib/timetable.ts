@@ -20,6 +20,11 @@ export interface ClassBlock {
   end: string; // "HH:MM" 24h
   location: string;
   color: string;
+  instructor?: string;
+  type?: "Lecture" | "Lab" | "Tutorial" | "Custom";
+  faculty?: "CSIT" | "Engineering" | "Business";
+  year?: 1 | 2 | 3 | 4;
+  group?: "Group 1" | "Group 2";
 }
 
 export interface Conflict {

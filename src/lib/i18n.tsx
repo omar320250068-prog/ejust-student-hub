@@ -79,6 +79,22 @@ const dictionaries = {
       countdown: "Next exam", hall: "Exam hall", seat: "Seat assignment", lookup: "Look up seat",
       hours: "Daily study hours", export: "Export calendar",
     },
+    timetable: {
+      title: "My timetable", subtitle: "Build a schedule that fits your degree and study load.",
+      faculty: "Faculty", academicYear: "Academic year", group: "Group", fall: "Fall 2026",
+      csit: "CSIT", engineering: "Engineering", business: "Business",
+      firstYear: "1st Year", secondYear: "2nd Year", thirdYear: "3rd Year", fourthYear: "4th Year",
+      group1: "Group 1", group2: "Group 2", addCourse: "Add custom course",
+      reset: "Reset to default", export: "Export .ics", print: "Print",
+      lecture: "Lecture", lab: "Lab", tutorial: "Tutorial", custom: "Custom",
+      courseName: "Course name", code: "Course code", day: "Day", start: "Start time",
+      end: "End time", location: "Room / lab location", instructor: "Instructor",
+      cancel: "Cancel", add: "Add course", required: "Course name and code are required.",
+      invalidTime: "End time must be after start time.", remove: "Remove", empty: "No classes scheduled for this day.",
+      conflicts: "conflicts detected", confirmRemove: "Remove this course from your timetable?",
+      resetConfirm: "Reset this profile to its default schedule? Custom courses will be removed.",
+      saved: "Saved on this device", customCourses: "custom courses",
+    },
   },
   ar: {
     nav: {
@@ -150,6 +166,22 @@ const dictionaries = {
       addCourse: "إضافة مقرر", courses: "المقررات", projection: "توقع الدرجات",
       countdown: "الامتحان القادم", hall: "قاعة الامتحان", seat: "رقم المقعد", lookup: "البحث عن المقعد",
       hours: "ساعات الدراسة اليومية", export: "تصدير التقويم",
+    },
+    timetable: {
+      title: "جدولي الدراسي", subtitle: "أنشئ جدولاً يناسب تخصصك وحملك الدراسي.",
+      faculty: "الكلية", academicYear: "السنة الدراسية", group: "المجموعة", fall: "خريف 2026",
+      csit: "حاسبات ومعلومات", engineering: "الهندسة", business: "إدارة الأعمال",
+      firstYear: "الفرقة الأولى", secondYear: "الفرقة الثانية", thirdYear: "الفرقة الثالثة", fourthYear: "الفرقة الرابعة",
+      group1: "المجموعة 1", group2: "المجموعة 2", addCourse: "إضافة مقرر مخصص",
+      reset: "إعادة الافتراضي", export: "تصدير .ics", print: "طباعة",
+      lecture: "محاضرة", lab: "معمل", tutorial: "تمرين", custom: "مخصص",
+      courseName: "اسم المقرر", code: "كود المقرر", day: "اليوم", start: "وقت البدء",
+      end: "وقت الانتهاء", location: "القاعة / المعمل", instructor: "المحاضر",
+      cancel: "إلغاء", add: "إضافة المقرر", required: "اسم المقرر والكود مطلوبان.",
+      invalidTime: "يجب أن يكون وقت الانتهاء بعد البدء.", remove: "حذف", empty: "لا توجد محاضرات لهذا اليوم.",
+      conflicts: "تعارضات", confirmRemove: "حذف هذا المقرر من جدولك؟",
+      resetConfirm: "إعادة هذا الملف إلى جدوله الافتراضي؟ ستُحذف المقررات المخصصة.",
+      saved: "محفوظ على هذا الجهاز", customCourses: "مقررات مخصصة",
     },
   },
   ja: {
@@ -223,6 +255,22 @@ const dictionaries = {
       countdown: "次の試験", hall: "試験会場", seat: "座席番号", lookup: "座席を検索",
       hours: "1日の学習時間", export: "カレンダーへ出力",
     },
+    timetable: {
+      title: "マイ時間割", subtitle: "学部と学習負荷に合わせて時間割を作成します。",
+      faculty: "学部", academicYear: "学年", group: "グループ", fall: "2026年秋学期",
+      csit: "情報技術", engineering: "工学", business: "経営",
+      firstYear: "1年", secondYear: "2年", thirdYear: "3年", fourthYear: "4年",
+      group1: "グループ1", group2: "グループ2", addCourse: "科目を追加",
+      reset: "初期時間割に戻す", export: ".icsを書き出す", print: "印刷",
+      lecture: "講義", lab: "実験", tutorial: "演習", custom: "カスタム",
+      courseName: "科目名", code: "科目コード", day: "曜日", start: "開始時刻",
+      end: "終了時刻", location: "教室 / 実験室", instructor: "担当教員",
+      cancel: "キャンセル", add: "科目を追加", required: "科目名とコードは必須です。",
+      invalidTime: "終了時刻は開始時刻より後にしてください。", remove: "削除", empty: "この曜日に授業はありません。",
+      conflicts: "件の重複", confirmRemove: "この科目を時間割から削除しますか？",
+      resetConfirm: "このプロフィールを初期時間割に戻しますか？カスタム科目は削除されます。",
+      saved: "この端末に保存済み", customCourses: "カスタム科目",
+    },
   },
 } as const;
 
@@ -237,7 +285,8 @@ type TranslationKey =
   | `cafeteria.${keyof Dictionary["cafeteria"]}`
   | `scholarships.${keyof Dictionary["scholarships"]}`
   | `auth.${keyof Dictionary["auth"]}`
-  | `study.${keyof Dictionary["study"]}`;
+  | `study.${keyof Dictionary["study"]}`
+  | `timetable.${keyof Dictionary["timetable"]}`;
 
 const LanguageContext = createContext<{
   locale: Locale;
