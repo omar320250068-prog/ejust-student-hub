@@ -63,7 +63,7 @@ export default function MapPage() {
   }
 
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-950/85 text-slate-100">
+    <main className="campus-life-page relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-50/80 text-slate-900 dark:bg-slate-950/85 dark:text-slate-100">
       <CampusBackground image="/images/campus/architecture.jpg.png" />
       <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-[1500px] flex-col gap-4 p-4 lg:p-6">
         <section className="flex flex-wrap items-end justify-between gap-4">

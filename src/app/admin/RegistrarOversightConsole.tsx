@@ -144,7 +144,7 @@ export default function RegistrarOversightConsole({
   ];
 
   return (
-    <div className="min-h-screen bg-[#050a18]">
+    <div className="admin-console min-h-screen bg-[#050a18]">
       <header className="border-b border-slate-800/80 bg-[#070e22]">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center space-x-2">

@@ -2,12 +2,24 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-glass: rgb(255 255 255 / 0.8);
+  --border: #cbd5e1;
+  --muted: #475569;
+  --subtle: #64748b;
 }
 
 .dark {
   --background: #070b16;
   --foreground: #e5eefc;
+  --surface: #0f172a;
+  --surface-muted: #1e293b;
+  --surface-glass: rgb(15 23 42 / 0.5);
+  --border: #334155;
+  --muted: #cbd5e1;
+  --subtle: #94a3b8;
 }
 
 @theme inline {
@@ -23,9 +35,7 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-.dark body {
-  background: #070b16;
-}
+body { background: var(--background); color: var(--foreground); }
 
 .dark .bg-white { background-color: rgb(15 23 42 / 0.88); }
 .dark .bg-gray-50 { background-color: rgb(30 41 59 / 0.72); }
@@ -41,6 +51,46 @@ body {
   background-color: rgb(15 23 42 / 0.86);
   border-color: rgb(71 85 105 / 0.8);
 }
+
+/* Shared token aliases keep legacy utility-heavy routes theme-safe. */
+.theme-surface { background: var(--surface); color: var(--foreground); border-color: var(--border); }
+.theme-muted { color: var(--muted); }
+.theme-subtle { color: var(--subtle); }
+html:not(.dark) .campus-life-page .campus-glass {
+  background-color: rgb(255 255 255 / 0.78);
+  border-color: rgb(226 232 240 / 0.9);
+  color: #0f172a;
+}
+html:not(.dark) .campus-life-page .campus-muted { color: #475569; }
+html:not(.dark) .campus-life-page .campus-input {
+  background-color: rgb(255 255 255 / 0.9);
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+html:not(.dark) .campus-life-page [class*="bg-slate-950"] { background-color: rgb(255 255 255 / 0.78); }
+html:not(.dark) .campus-life-page [class*="bg-white/"] { background-color: rgb(255 255 255 / 0.62); }
+html:not(.dark) .campus-life-page [class*="border-white"] { border-color: rgb(203 213 225 / 0.85); }
+html:not(.dark) .campus-life-page [class*="text-white"] { color: #0f172a; }
+html:not(.dark) .campus-life-page [class*="text-slate-200"],
+html:not(.dark) .campus-life-page [class*="text-slate-300"] { color: #475569; }
+html:not(.dark) .focus-mode-page [class*="bg-slate-950"] { background-color: #f8fafc; }
+html:not(.dark) .focus-mode-page [class*="text-white"] { color: #0f172a; }
+.dark .focus-mode-page .bg-white { background-color: rgb(15 23 42 / 0.88); }
+html:not(.dark) .admin-console { background: #f8fafc; color: #0f172a; }
+html:not(.dark) .admin-console [class*="bg-[#050a18]"],
+html:not(.dark) .admin-console [class*="bg-[#070e22]"],
+html:not(.dark) .admin-console [class*="bg-slate-900"] { background-color: #ffffff; }
+html:not(.dark) .admin-console [class*="text-white"] { color: #0f172a; }
+html:not(.dark) .admin-console [class*="text-slate-300"],
+html:not(.dark) .admin-console [class*="text-slate-400"] { color: #475569; }
+html:not(.dark) .admin-console [class*="border-slate-800"] { border-color: #cbd5e1; }
+html:not(.dark) .auth-glass-page [class*="bg-slate-900"] { background-color: rgb(255 255 255 / 0.82); }
+html:not(.dark) .auth-glass-page [class*="text-white"] { color: #0f172a; }
+html:not(.dark) .auth-glass-page [class*="text-slate-200"],
+html:not(.dark) .auth-glass-page [class*="text-slate-300"],
+html:not(.dark) .auth-glass-page [class*="text-slate-400"] { color: #475569; }
+html:not(.dark) .auth-glass-page [class*="border-white"] { border-color: rgb(203 213 225 / 0.9); }
+html:not(.dark) .auth-glass-page input { background-color: rgb(255 255 255 / 0.9); color: #0f172a; border-color: #cbd5e1; }
 
 html[lang="ja"] body { letter-spacing: 0.01em; }
 html[dir="rtl"] body { font-family: Arial, "Noto Sans Arabic", sans-serif; }

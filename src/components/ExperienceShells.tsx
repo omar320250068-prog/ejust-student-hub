@@ -16,13 +16,13 @@ export function CampusLifeShell({
   description: string;
 }) {
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-950/70 text-white">
+    <main className="campus-life-page relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-50/75 text-slate-900 dark:bg-slate-950/70 dark:text-slate-100">
       <CampusBackground image="/images/campus/night-campus.jpg.png" />
       <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7 max-w-2xl">
-          <p className="text-sm font-medium text-cyan-200">E-JUST campus life</p>
+          <p className="text-sm font-medium text-cyan-700 dark:text-cyan-200">E-JUST campus life</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
-          <p className="mt-3 text-base leading-7 text-slate-200">{description}</p>
+          <p className="mt-3 text-base leading-7 text-slate-600 dark:text-slate-200">{description}</p>
         </motion.div>
         {children}
       </div>
@@ -45,7 +45,7 @@ export function StudyShell({
 }) {
   const { t } = useLanguage();
   return (
-    <main className="min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <main className="focus-mode-page min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Link href="/today" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-cyan-600 dark:text-slate-400 dark:hover:text-cyan-300"><ArrowLeft size={14} />{t("services.back")}</Link>
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">

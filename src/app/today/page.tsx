@@ -94,7 +94,7 @@ export default function TodayPage() {
   ];
 
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-950/75 text-white">
+    <main className="campus-life-page relative min-h-[calc(100vh-3rem)] overflow-hidden bg-slate-50/75 text-slate-900 dark:bg-slate-950/75 dark:text-white">
       <CampusBackground image="/images/campus/hero-sunset.jpg.png" />
       <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative overflow-hidden rounded-[2rem] border border-white/25 bg-white/10 p-6 shadow-2xl shadow-slate-950/20 backdrop-blur-md sm:p-9">
