@@ -143,6 +143,61 @@ function cafeteriaDocs(): KnowledgeDoc[] {
 function academicsDocs(): KnowledgeDoc[] {
   return [
     {
+      id: "academics:csit-regulations",
+      title: "CSIT academic regulations",
+      category: "academics",
+      text: [
+        "The official Faculty of Computer Science and Information Technology (CSIT) graduation requirement is 134 successfully completed credit hours with a cumulative GPA (CGPA) of at least 2.00.",
+        "Promotion from level one to level two requires 32 successfully completed credit hours; from level two to level three requires 64; and from level three to level four requires 96.",
+        "The four approved CSIT programs are Computer Science (CSC), Artificial Intelligence and Data Science (AID), Computer Networks and Cyber Security (CNC), and Bioinformatics (BIF).",
+        "The curriculum includes 24 mathematics and basic science credits: 18 compulsory credits (MTH 111, MTH 121, PHY 113, PHY 123, MTH 212, and CSE 312) and 6 elective credits from chemistry, life sciences, ACM 215 differential equations, numerical analysis, operations research, or signals and systems analysis.",
+        "Core computing requirements total 39 credits and cover programming, data structures, algorithm analysis, and software engineering. University and humanities requirements include Japanese language LRA 401 and LRA 403, English, Japanese culture LRA 101, sustainability LRA 306, philosophy LRA 102, and music or drama.",
+      ].join(" "),
+      keywords: [
+        "csit", "computer science", "information technology", "graduation", "graduate",
+        "134", "2.00", "cgpa", "promotion", "32", "64", "96", "credits", "program",
+        "csc", "aid", "cnc", "bif", "curriculum", "math", "science", "humanities",
+        "متطلبات", "التخرج", "ساعات", "اعتماد", "معدل", "ترقية", "برنامج",
+        "اللوائح", "الساعة", "الساعات", "المعتمدة", "النجاح", "المستوى",
+      ],
+    },
+    {
+      id: "academics:csit-course-catalog",
+      title: "CSIT course catalog",
+      category: "academics",
+      text: [
+        "The official CSIT course catalog includes LRA 403 Japanese Language (3 credits), a university language requirement; LRA 306 Natural Resources and Sustainability, a university humanities requirement; MTH 212 Probability and Statistics; ACM 215 Ordinary Differential Equations; CSC 114 Algorithms Analysis and Design; CSE 214 Computer Organization; CNC 111 Networks and Web Programming; and CSC 211 Software Engineering 1.",
+      ].join(" "),
+      keywords: [
+        "course", "catalog", "code", "lra 403", "lra403", "lra 306", "lra306",
+        "mth 212", "mth212", "acm 215", "acm215", "csc 114", "csc114",
+        "cse 214", "cse214", "cnc 111", "cnc111", "csc 211", "csc211",
+        "japanese", "sustainability", "probability", "statistics", "differential",
+        "equations", "algorithms", "organization", "networks", "software engineering",
+        "مادة", "مقرر", "كود",
+      ],
+    },
+    {
+      id: "academics:csit-calendar-and-rooms",
+      title: "CSIT academic calendar and campus rooms",
+      category: "academics",
+      text: [
+        "The official academic calendar starts the Fall semester on September 29, schedules midterm examinations from November 17 to November 21, schedules final examinations from January 11 to January 23, and starts the Spring semester on February 9.",
+        "Building 7 is the Engineering and Computer building. Its classrooms are F1.20, F1.21, F1.22, F1.23, F1.24, and G01. Its computer laboratories are COE F2.16 and COE F2.17.",
+        "Building 10 is the central building and theatre complex. Its classrooms are F1.06, F1.08, F1.10, F1.11, and F1.18. Its large theatres and colored halls are Theater B10, Green Hall, Blue Hall, Yellow Hall, and Red Hall.",
+        "Lectures are organized by Group 1 and Group 2 to avoid timetable and room conflicts. Exam seat numbers for midterms and finals are assigned based on the student ID. Colored halls in Building 10 are used for larger groups, while Building 7 rooms are used for smaller groups.",
+      ].join(" "),
+      keywords: [
+        "academic calendar", "fall", "spring", "september 29", "november 17", "november 21",
+        "january 11", "january 23", "february 9", "midterms", "finals", "rooms",
+        "building 7", "building 10", "f1.20", "f1.21", "f1.22", "f1.23", "f1.24",
+        "g01", "coe f2.16", "coe f2.17", "theater b10", "green hall", "blue hall",
+        "yellow hall", "red hall", "group 1", "group 2", "student id", "seat",
+        "تقويم", "فصل", "خريف", "ربيع", "امتحان", "امتحانات", "منتصف", "الفصل",
+        "بداية", "تبدأ", "قاعة", "مبنى", "رقم جلوس", "الجلوس", "جامعي",
+      ],
+    },
+    {
       id: "academics:gpa",
       title: "GPA scale and degree tracking",
       category: "academics",
@@ -256,10 +311,20 @@ export const DOMAIN_VOCABULARY: readonly string[] = [
   "faculty", "laboratory", "lab", "hall", "auditorium", "classroom", "college",
   "center", "centre", "excellence",
   // Academics
-  "gpa", "grade", "credit", "semester", "course", "transcript", "degree",
+  "gpa", "grade", "credit", "credits", "semester", "course", "catalog", "code", "transcript", "degree",
   "graduate", "graduation", "target", "forecast", "scale", "timetable",
   "schedule", "class", "conflict", "calendar", "export", "exam", "quiz",
   "midterm", "final", "study", "planner", "revision", "countdown", "study",
+  "csit", "computer science", "information technology", "graduation", "cgpa",
+  "promotion", "curriculum", "program", "math", "physics", "japanese",
+  "sustainability", "algorithms", "networks", "software engineering",
+  "building 7", "building 10", "theater", "hall", "classroom", "student id",
+  "seat", "rooms", "fall", "spring", "september", "november", "january", "february",
+  "csc", "aid", "cnc", "bif", "mth", "phy", "cse", "acm", "lra",
+  "f1.20", "f1.21", "f1.22", "f1.23", "f1.24", "g01", "f1.06", "f1.08",
+  "f1.10", "f1.11", "f1.18", "coe", "f2.16", "f2.17",
+  "مادة", "مقرر", "كود", "تخرج", "ساعات", "اعتماد", "معدل", "قاعة", "مبنى",
+  "متطلبات", "اللوائح", "امتحانات", "منتصف", "الفصل", "تبدأ", "تقويم",
   // Cafeteria
   "cafeteria", "food", "meal", "menu", "breakfast", "lunch", "dinner", "price",
   "prices", "cost", "cheap", "budget", "vegetarian", "egp", "eat",
@@ -301,4 +366,3 @@ export function isInDomain(query: string): boolean {
   const stems = domainStems();
   return tokenize(query).some((token) => stems.has(token));
 }
-

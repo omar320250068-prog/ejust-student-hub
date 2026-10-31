@@ -28,7 +28,7 @@ export function stem(token: string): string {
 export function tokenize(input: string): string[] {
   return input
     .toLowerCase()
-    .split(/[^a-z0-9+]+/)
+    .split(/[^\p{L}\p{N}+]+/u)
     .filter((t) => t.length > 1 && !STOPWORDS.has(t))
     .map(stem);
 }

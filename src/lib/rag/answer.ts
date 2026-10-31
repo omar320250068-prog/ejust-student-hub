@@ -117,6 +117,7 @@ function notFound(): Answer {
       "I couldn't find that in the local knowledge base — so rather than guess, I'll say so.",
       "",
       "I can answer questions about: campus buildings, gates and parking; walking directions; the GPA scale; the timetable builder; the exam planner; cafeteria menu and prices; EJUST scholarships; and how this app works.",
+      "For CSIT, this includes graduation requirements, promotion thresholds, approved programs, course codes, the academic calendar, Building 7 and Building 10 rooms, timetable groups, and exam seat assignment rules.",
     ].join("\n"),
     citations: [],
     confidence: "none",
