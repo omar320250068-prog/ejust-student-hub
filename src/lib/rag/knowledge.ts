@@ -2,6 +2,7 @@ import { CAMPUS, allEntities } from "@/lib/campusTypes";
 import { SCHOLARSHIPS } from "@/data/scholarships";
 import { menuFor, DAYS, PERIODS, formatEgp } from "@/data/cafeteria";
 import { GRADE_POINTS } from "@/lib/gpa";
+import faqsData from "@/data/faqs.json";
 import { tokenize } from "./retriever";
 
 /**
@@ -11,11 +12,34 @@ import { tokenize } from "./retriever";
 export interface KnowledgeDoc {
   id: string;
   title: string;
-  category: "campus" | "scholarship" | "cafeteria" | "academics" | "about";
+  category: string;
   text: string;
   /** Extra searchable terms that don't appear naturally in `text` (synonyms, codes). */
   keywords: string[];
 }
+
+interface FaqRecord {
+  id: string;
+  category: string;
+  question_ar: string;
+  question_en: string;
+  answer_ar: string;
+  answer_en: string;
+  keywords: string[];
+}
+
+const faqDocs: KnowledgeDoc[] = (faqsData as FaqRecord[]).map((faq) => ({
+  id: faq.id,
+  category: faq.category,
+  title: `${faq.question_ar} | ${faq.question_en}`,
+  text: [
+    `السؤال: ${faq.question_ar}`,
+    `Question: ${faq.question_en}`,
+    `الإجابة: ${faq.answer_ar}`,
+    `Answer: ${faq.answer_en}`,
+  ].join("\n"),
+  keywords: faq.keywords,
+}));
 
 function campusDocs(): KnowledgeDoc[] {
   const entityDocs: KnowledgeDoc[] = allEntities(CAMPUS).map((entity) => {
@@ -280,6 +304,7 @@ export function knowledgeBase(): KnowledgeDoc[] {
       ...academicsDocs(),
       ...cafeteriaDocs(),
       ...scholarshipDocs(),
+      ...faqDocs,
     ];
   }
   return cached;
@@ -325,6 +350,16 @@ export const DOMAIN_VOCABULARY: readonly string[] = [
   "f1.10", "f1.11", "f1.18", "coe", "f2.16", "f2.17",
   "مادة", "مقرر", "كود", "تخرج", "ساعات", "اعتماد", "معدل", "قاعة", "مبنى",
   "متطلبات", "اللوائح", "امتحانات", "منتصف", "الفصل", "تبدأ", "تقويم",
+  "half load", "add/drop", "academic probation", "summer course", "medical excuse",
+  "semester freeze", "course retake", "moodle", "student email", "wifi", "wi-fi",
+  "dormitory", "dorm", "curfew", "visitor", "maintenance", "laundry", "gym",
+  "sports center", "shuttle", "transport", "tuition", "installment", "financial aid",
+  "student id", "transcript", "enrollment certificate", "military status", "tutoring",
+  "health clinic", "student housing", "حذف", "إضافة", "إنذار", "فصل صيفي", "عذر",
+  "تجميد", "إعادة مادة", "مودل", "البريد الجامعي", "واي فاي", "السكن", "حظر التجول",
+  "الزوار", "الصيانة", "الغسيل", "الجيم", "المواصلات", "المصروفات", "تقسيط",
+  "مساعدة مالية", "بطاقة الطالب", "كشف الدرجات", "شهادة قيد", "تأجيل التجنيد",
+  "دروس", "عيادة",
   // Cafeteria
   "cafeteria", "food", "meal", "menu", "breakfast", "lunch", "dinner", "price",
   "prices", "cost", "cheap", "budget", "vegetarian", "egp", "eat",
@@ -346,7 +381,9 @@ let cachedDomainStems: Set<string> | null = null;
 
 function domainStems(): Set<string> {
   if (!cachedDomainStems) {
-    cachedDomainStems = new Set(DOMAIN_VOCABULARY.flatMap((word) => tokenize(word)));
+    cachedDomainStems = new Set([
+      ...DOMAIN_VOCABULARY.flatMap((word) => tokenize(word)),
+    ]);
   }
   return cachedDomainStems;
 }

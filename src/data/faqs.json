@@ -1,0 +1,472 @@
+[
+    {
+        "id":  "faq_001",
+        "category":  "academic",
+        "question_ar":  "إيه هي متطلبات التخرج من كلية حاسبات ومعلومات E-JUST؟",
+        "question_en":  "What are the graduation requirements for the Faculty of CSIT at E-JUST?",
+        "answer_ar":  "يتطلب التخرج من كلية حاسبات ومعلومات (CSIT) إتمام 134 ساعة معتمدة بنجاح، مع تحقيق معدل تراكمي (CGPA) لا يقل عن 2.00 من 4.00، واستيفاء كافة المقررات الإجبارية والاختيارية المحددة في اللائحة الأكاديمية.",
+        "answer_en":  "Graduation from CSIT requires completing 134 credit hours successfully with a minimum cumulative GPA (CGPA) of 2.00 out of 4.00, alongside fulfilling all mandatory and elective course requirements outlined in the academic bylaws.",
+        "keywords":  [
+                         "تخرج",
+                         "ساعات معتمدة",
+                         "CGPA",
+                         "graduation",
+                         "credits",
+                         "CSIT"
+                     ]
+    },
+    {
+        "id":  "faq_002",
+        "category":  "academic",
+        "question_ar":  "ازاي بتنقل من سنة لسنة (Level Progression) في الكلية؟",
+        "question_en":  "How do I progress from one academic level to the next?",
+        "answer_ar":  "يتم الانتقال بين المستويات بناءً على عدد الساعات المعتمدة المكتملة بنجاح: للانتقال للمستوى الثاني يلزم إنهاء 32 ساعة، وللمستوى الثالث يلزم 64 ساعة، وللمستوى الرابع (سنة تخرج) يلزم إنهاء 96 ساعة معتمدة.",
+        "answer_en":  "Level progression is based on earned credit hours: to reach Level 2 you need 32 credits, Level 3 requires 64 credits, and Level 4 (senior year) requires completing 96 credit hours.",
+        "keywords":  [
+                         "المستويات",
+                         "الانتقال",
+                         "ساعات",
+                         "progression",
+                         "levels",
+                         "credits"
+                     ]
+    },
+    {
+        "id":  "faq_003",
+        "category":  "academic",
+        "question_ar":  "إيه هي الأقسام والتخصصات المتاحة في الكلية؟",
+        "question_en":  "What academic majors/programs are available in CSIT?",
+        "answer_ar":  "تقدم الكلية 4 برامج رئيسية هي: علوم الحاسب (CS)، الذكاء الاصطناعي وعلم البيانات (AID)، شبكات الحاسب والأمن السيبراني (CNC)، والمعلوماتية الحيوية (BIF).",
+        "answer_en":  "The faculty offers 4 major programs: Computer Science (CS), Artificial Intelligence \u0026 Data Science (AID), Computer Networks \u0026 Cyber Security (CNC), and Bioinformatics (BIF).",
+        "keywords":  [
+                         "تخصصات",
+                         "أقسام",
+                         "CS",
+                         "AID",
+                         "CNC",
+                         "BIF",
+                         "programs"
+                     ]
+    },
+    {
+        "id":  "faq_004",
+        "category":  "academic",
+        "question_ar":  "يعني إيه تسجيل الـ Half Load وإيه هي شروطه؟",
+        "question_en":  "What does a Half Load registration mean and what are its rules?",
+        "answer_ar":  "تسجيل الـ Half Load يعني تسجيل ساعات دراسية أقل من الحد الأدنى للفصل الاعتيادي (أقل من 12 ساعة). يستلزم ذلك موافقة المرشد الأكاديمي وعميد الكلية، ويرتبط عادةً بالحالات الصحية أو الطلاب المُنذرين أكاديمياً.",
+        "answer_en":  "A Half Load registration means taking fewer than the minimum required credits per semester (less than 12 credits). It requires approval from both your Academic Advisor and the Faculty Dean, typically granted for medical reasons or students under academic probation.",
+        "keywords":  [
+                         "Half Load",
+                         "ساعات مخفضة",
+                         "مرشد أكاديمي",
+                         "credits",
+                         "probation"
+                     ]
+    },
+    {
+        "id":  "faq_005",
+        "category":  "academic",
+        "question_ar":  "لو عدت مادة (Course Retake) الدرجة القديمة بتحسب ازاي في الـ GPA؟",
+        "question_en":  "How does retaking a course affect my CGPA calculation?",
+        "answer_ar":  "عند إعادة مادة رسبت فيها أو ترغب في تحسين درجتها، تُحسب الدرجة الجديدة الأعلى في حساب المعدل التراكمي (CGPA)، بينما تظل الدرجة القديمة مسجلة في السجل الأكاديمي (Transcript) مع رمز يشير للإعادة.",
+        "answer_en":  "When retaking a failed or low-grade course, the higher grade is used in the CGPA calculation, although the original grade remains visible on your official academic transcript marked as retaken.",
+        "keywords":  [
+                         "تحسين",
+                         "إعادة مادة",
+                         "CGPA",
+                         "retake",
+                         "GPA",
+                         "transcript"
+                     ]
+    },
+    {
+        "id":  "faq_006",
+        "category":  "academic",
+        "question_ar":  "امتى فترة الحذف والإضافة (Add/Drop) وبتتم ازاي؟",
+        "question_en":  "When is the Add/Drop period and how does it work?",
+        "answer_ar":  "تكون فترة الحذف والإضافة خلال الأسبوعين الأولين من الفصل الدراسي. يمكنك تعديل جدولك عبر البوابة الأكاديمية (SIS) ومراجعة مرشدك الأكاديمي لتدقيق الشريحة الدراسية المعدلة.",
+        "answer_en":  "The Add/Drop period takes place during the first two weeks of the semester. You can modify your schedule online via the Student Information System (SIS) and finalize approval with your Academic Advisor.",
+        "keywords":  [
+                         "Add/Drop",
+                         "حذف وإضافة",
+                         "تعديل جدول",
+                         "SIS",
+                         "advisor"
+                     ]
+    },
+    {
+        "id":  "faq_007",
+        "category":  "academic",
+        "question_ar":  "امتى الطالب بياخد إنذار أكاديمي (Academic Probation) وإزاي يرفعه؟",
+        "question_en":  "When does a student receive an Academic Warning and how to clear it?",
+        "answer_ar":  "يصدر الإنذار الأكاديمي إذا انخفض المعدل التراكمي (CGPA) عن 2.00. لرفع الإنذار، يجب على الطالب رفع المعدل إلى 2.00 أو أكثر خلال الفصلين التاليين من خلال إعادة المواد ذات التقديرات المنخفضة وتقليل عبء الساعات.",
+        "answer_en":  "An Academic Probation is issued if your CGPA drops below 2.00. To clear it, you must raise your CGPA back to 2.00 or higher within the following two semesters by retaking low-grade courses and reducing credit load.",
+        "keywords":  [
+                         "إنذار أكاديمي",
+                         "معدل منخفض",
+                         "probation",
+                         "CGPA",
+                         "warning"
+                     ]
+    },
+    {
+        "id":  "faq_008",
+        "category":  "academic",
+        "question_ar":  "إيه هي شروط ونظام الفصل الصيفي (Summer Course)؟",
+        "question_en":  "What are the rules and limits for taking Summer Courses?",
+        "answer_ar":  "الفصل الصيفي اختياري ومدته 7 إلى 8 أسابيع. الحد الأقصى للتسجيل فيه هو 6 إلى 7 ساعات معتمدة (عادةً مادتين)، ويُخصص غالباً للمواد المعادة أو للطلاب الخريجين لإنهاء متطلبات التخرج.",
+        "answer_en":  "The Summer session is optional and runs for 7-8 weeks. Students can register for a maximum of 6-7 credit hours (typically 2 courses), usually intended for course retakes or graduating seniors.",
+        "keywords":  [
+                         "ترم صيفي",
+                         "Summer",
+                         "ساعات صيفية",
+                         "credits",
+                         "retake"
+                     ]
+    },
+    {
+        "id":  "faq_009",
+        "category":  "academic",
+        "question_ar":  "لو تعبت وماقدرتش احضر الامتحان، ازاي اقدم عذر طبي (Medical Excuse)؟",
+        "question_en":  "How do I submit an official medical excuse if I miss an exam?",
+        "answer_ar":  "يجب تقديم العذر الطبي المعتمد إلى الإدارة الطبية بالجامعة في غضون 48 ساعة من موعد الامتحان. بعد التوثيق الطبي، تُعرض الحالة على لجنة شؤون الطلاب لاعتماد تقدير (Incomplete - I) وتحديد موعد للامتحان التعويضي.",
+        "answer_en":  "An official medical certificate must be submitted to the University Medical Clinic within 48 hours of the missed exam. Once verified, Student Affairs reviews the case to assign an \u0027Incomplete (I)\u0027 grade and schedule a makeup exam.",
+        "keywords":  [
+                         "عذر طبي",
+                         "غياب امتحان",
+                         "Incomplete",
+                         "medical excuse",
+                         "clinic"
+                     ]
+    },
+    {
+        "id":  "faq_010",
+        "category":  "academic",
+        "question_ar":  "اقدر أأجل الترم (Semester Freeze) أو أوقف قيدي إزاي؟",
+        "question_en":  "How can I apply for a Semester Freeze or postpone my studies?",
+        "answer_ar":  "يمكنك تقديم طلب تأجيل الفصل الدراسي لشؤون الطلاب قبل نهاية فترة الحذف والإضافة، بشرط وجود عذر مقبول وتأييد المرشد الأكاديمي. يُسمح بتأجيل فصلين دراسيين كحد أقصى طوال فترة الدراسة.",
+        "answer_en":  "You can apply for a semester freeze through Student Affairs before the end of the Add/Drop period with a valid reason and Academic Advisor approval. A maximum of two frozen semesters is allowed throughout your study program.",
+        "keywords":  [
+                         "تأجيل ترم",
+                         "إيقاف قيد",
+                         "freeze",
+                         "postpone",
+                         "student affairs"
+                     ]
+    },
+    {
+        "id":  "faq_011",
+        "category":  "administrative",
+        "question_ar":  "أصل فين لمبنى الكلية المعامل والقاعات بتعتنا؟",
+        "question_en":  "Where are the CSIT lectures and computer labs located?",
+        "answer_ar":  "تقع معظم المحاضرات والمعامل في المبنى رقم 7 (Building 7 - COE \u0026 CSIT). المحاضرات اليومية تقع في القاعات F1.20 حتى F1.24، والمعامل في COE F2.16 و COE F2.17.",
+        "answer_en":  "Most CSIT lectures and labs are located in Building 7 (COE \u0026 CSIT). Daily lectures are held in rooms F1.20 through F1.24, while specialized computer labs are in COE F2.16 and COE F2.17.",
+        "keywords":  [
+                         "مبنى 7",
+                         "قاعات",
+                         "معامل",
+                         "Building 7",
+                         "labs",
+                         "CSIT"
+                     ]
+    },
+    {
+        "id":  "faq_012",
+        "category":  "administrative",
+        "question_ar":  "امتحانات الفاينل والـ Midterm بتكون في أنهي قاعات؟",
+        "question_en":  "Where are Midterm and Final exams held on campus?",
+        "answer_ar":  "تُعقد الامتحانات الكبرى في المبنى الرئيسي (Building 10)، تحديداً في المسرح (Theater B10) والقاعات الملونة (المدرج الأخضر، الأزرق، الأصفر، والأحمر)، بالإضافة إلى قاعات المبنى 7 للمجموعات الصغرى.",
+        "answer_en":  "Major exams take place in the Main Building (Building 10), specifically in Theater B10 and the Color Halls (Green, Blue, Yellow, Red Halls), as well as designated Building 7 halls for smaller groups.",
+        "keywords":  [
+                         "امتحانات",
+                         "مبنى 10",
+                         "القاعات الملونة",
+                         "Exams",
+                         "Building 10",
+                         "Theater"
+                     ]
+    },
+    {
+        "id":  "faq_013",
+        "category":  "housing",
+        "question_ar":  "إيه هي مواعيد المواعيد الأخيرة لدخول السكن (Curfew) وسياسة الزيارات؟",
+        "question_en":  "What are the dormitory curfew hours and visitor rules?",
+        "answer_ar":  "يُغلق السكن الجامعي أبوابه يومياً الساعة 11:00 مساءً. الزيارات مسموحة فقط في الصالات المشتركة للضيوف المعتمدين من الساعة 4:00 عصراً حتى 9:00 مساءً ولا يُسمح بالزيارات داخل الغرف الشخصية.",
+        "answer_en":  "The dormitory curfew is set at 11:00 PM daily. Visitors are allowed strictly in common lounges for pre-approved guests between 4:00 PM and 9:00 PM; room visits are strictly prohibited.",
+        "keywords":  [
+                         "سكن",
+                         "حظر",
+                         "مواعيد السكن",
+                         "Dorm",
+                         "Curfew",
+                         "Visitors"
+                     ]
+    },
+    {
+        "id":  "faq_014",
+        "category":  "housing",
+        "question_ar":  "لو عندي مشكلة في السباكة أو الكهربا في أوضتي بالسكن اطلب صيانه ازاي؟",
+        "question_en":  "How do I submit a room maintenance request in the dorms?",
+        "answer_ar":  "يمكنك تقديم طلب الصيانة من خلال تطبيق السكن أو مسح الـ QR Code الموجود بمدخل كل مبنى سكني، أو إبلاغ مشرف السكن المباشر في مكتب الاستقبال وسيتولى الفريق الفني حل المشكلة خلال 24 ساعة.",
+        "answer_en":  "Submit maintenance requests via the Housing App, scan the QR code located at your dorm entry hall, or directly notify your dorm supervisor. The technical team usually handles standard requests within 24 hours.",
+        "keywords":  [
+                         "صيانة",
+                         "سكن",
+                         "أعطال",
+                         "Maintenance",
+                         "Dorm",
+                         "Housing"
+                     ]
+    },
+    {
+        "id":  "faq_015",
+        "category":  "housing",
+        "question_ar":  "ازاي بستخدم مغسلة الملابس (Laundry) في السكن الجامعي؟",
+        "question_en":  "How do I use the laundry facilities in the student dorms?",
+        "answer_ar":  "غرف الغسيل متوفرة في الطابق الأرضي بكل مبنى سكني. يتم حجز الموعد عبر جدول الحجز عند المشرف، ويجب استخدام مساحيق الغسيل التلقائية المخصصة وتفريغ الغسالة فور انتهاء دورة الغسيل.",
+        "answer_en":  "Laundry rooms are located on the ground floor of each dorm building. Book your slot on the schedule sheet at the supervisor desk, use automatic detergent, and remove items promptly once the cycle ends.",
+        "keywords":  [
+                         "غسيل",
+                         "مغسلة",
+                         "سكن",
+                         "Laundry",
+                         "Dorm",
+                         "Facilities"
+                     ]
+    },
+    {
+        "id":  "faq_016",
+        "category":  "housing",
+        "question_ar":  "مواعيد الجيم والمركز الرياضي في الجامعة إيه؟",
+        "question_en":  "What are the operating hours for the campus Gym and Sports Center?",
+        "answer_ar":  "صالة الجيم والمركز الرياضي مفتوحة من 8:00 صباحاً حتى 10:00 مساءً. تخصص أوقات منفصلة للطلاب والطالبات وفق الجدول الأسبوعي المعلق على بوابة المركز الرياضي.",
+        "answer_en":  "The Gym and Sports Center operate from 8:00 AM to 10:00 PM. Separate time slots are designated for male and female students according to the weekly schedule posted at the sports complex entrance.",
+        "keywords":  [
+                         "جيم",
+                         "رياضة",
+                         "مواعيد",
+                         "Gym",
+                         "Sports Center",
+                         "Fitness"
+                     ]
+    },
+    {
+        "id":  "faq_017",
+        "category":  "transport",
+        "question_ar":  "مواعيد أتوبيسات الإسكندرية (سموحة وسيدي جابر) إيه وازاي بحجزها؟",
+        "question_en":  "What are the daily shuttle bus schedules for Alexandria and how to book?",
+        "answer_ar":  "تحرك أتوبيسات الإسكندرية صباحاً الساعة 7:15 صباحاً من سموحة وسيدي جابر للوصول للجامعة، وتغادر من الجامعة في العودة الساعة 4:30 مساءً. الحجز يتم أسبوعياً عبر تطبيق الاتوبيسات المعتمد.",
+        "answer_en":  "Alexandria daily shuttles depart at 7:15 AM from Smouha and Sidi Gaber to campus, with return buses leaving campus at 4:30 PM. Weekly seat booking is required via the official E-JUST Transportation portal.",
+        "keywords":  [
+                         "اتوبيس",
+                         "إسكندرية",
+                         "سموحة",
+                         "Shuttle",
+                         "Bus",
+                         "Alexandria"
+                     ]
+    },
+    {
+        "id":  "faq_018",
+        "category":  "transport",
+        "question_ar":  "هل فيه أتوبيسات للقاهرة يوم الجمعة والأحد؟",
+        "question_en":  "Are there weekend shuttle buses to and from Cairo?",
+        "answer_ar":  "نعم، توفر الجامعة أتوبيسات القاهرة للطلاب المغادرين يوم الخميس الساعة 4:00 مساءً، وأتوبيسات العودة من القاهرة (ميدان الرماية ومصر الجديدة) يوم الأحد الساعة 7:00 صباحاً.",
+        "answer_en":  "Yes, Cairo weekend shuttles run every Thursday leaving campus at 4:00 PM, with return trips from Cairo (El Remaya Sq \u0026 Heliopolis) departing Sunday mornings at 7:00 AM.",
+        "keywords":  [
+                         "أتوبيس القاهرة",
+                         "سفر",
+                         "الويكإند",
+                         "Cairo",
+                         "Weekend Bus",
+                         "Transport"
+                     ]
+    },
+    {
+        "id":  "faq_019",
+        "category":  "fees",
+        "question_ar":  "إيه هي شروط المحافظة على المنحة الدراسية (Scholarship Maintenance)؟",
+        "question_en":  "What are the CGPA requirements to maintain a scholarship?",
+        "answer_ar":  "للحفاظ على المنحة الكلية أو الجزئية، يجب ألا يقل معدلك التراكمي (CGPA) عن 3.00. إذا انخفض المعدل عن 3.00 يتم تخفيض نسبة المنحة تدريجياً، وتُلغى تماماً إذا قل المعدل عن 2.50.",
+        "answer_en":  "To maintain a full or partial scholarship, you must maintain a minimum CGPA of 3.00. If your CGPA drops below 3.00, the scholarship percentage decreases, and it may be revoked if the CGPA falls below 2.50.",
+        "keywords":  [
+                         "منحة",
+                         "شروط المنحة",
+                         "CGPA",
+                         "Scholarship",
+                         "Financial Aid"
+                     ]
+    },
+    {
+        "id":  "faq_020",
+        "category":  "fees",
+        "question_ar":  "امتى أخر ميعاد لدفع المصاريف ولو اتأخرت إيه اللي بيحصل؟",
+        "question_en":  "When is the tuition fee payment deadline and what happens if I pay late?",
+        "answer_ar":  "أخر موعد لدفع المصاريف هو نهاية الأسبوع الثاني من الفصل الدراسي. التأخر في الدفع يؤدي لفرض غرامة تأخير وإيقاف الدخول على بوابة التسجيل (SIS) ومنصة Moodle حتى سداد المستحقات.",
+        "answer_en":  "The tuition payment deadline is the end of the second week of the semester. Late payment results in late fees and temporary suspension of access to SIS registration and Moodle services.",
+        "keywords":  [
+                         "مصاريف",
+                         "سداد",
+                         "غرامة",
+                         "Tuition",
+                         "Payment",
+                         "Deadline"
+                     ]
+    },
+    {
+        "id":  "faq_021",
+        "category":  "fees",
+        "question_ar":  "ازاي اقدم على طلب الدعم المالي أو تقسيط المصاريف؟",
+        "question_en":  "How can I apply for financial aid or a tuition installment plan?",
+        "answer_ar":  "يمكنك تقديم طلب الدعم المالي أو التقسيط عبر مكتب الرعاية الاجتماعية بشؤون الطلاب قبل بداية الفصل الدراسي بأسبوعين، مع تقديم المستندات الدالة على الدخل والظروف الأسرية للجنة المختصة.",
+        "answer_en":  "Apply for financial aid or installments through the Student Welfare Office before the semester begins, providing required family income and financial status documents for review.",
+        "keywords":  [
+                         "دعم مالی",
+                         "تقسيط",
+                         "مصاريف",
+                         "Financial Aid",
+                         "Installments",
+                         "Welfare"
+                     ]
+    },
+    {
+        "id":  "faq_022",
+        "category":  "administrative",
+        "question_ar":  "لو ضيعت كارنيه الجامعة (Student ID)، ازاي أطلع بدل فاقد؟",
+        "question_en":  "What is the procedure for replacing a lost Student ID card?",
+        "answer_ar":  "قم بإبلاغ الأمن والأمانة العامة، ثم ادفع رسم بدل الفاقد في الخزينة أو عبر الخصم الإلكتروني، وتوجه لشؤون الطلاب بصورة شخصية وإيصال الدفع لطباعة الكارنيه الجديد في نفس اليوم.",
+        "answer_en":  "Report the lost card to campus security, pay the replacement fee at the cashier or online, and present the payment receipt to Student Affairs along with a photo to print a new ID.",
+        "keywords":  [
+                         "كارنيه",
+                         "بدل فاقد",
+                         "Student ID",
+                         "Lost ID",
+                         "Replacement"
+                     ]
+    },
+    {
+        "id":  "faq_023",
+        "category":  "administrative",
+        "question_ar":  "ازاي اطلب بيان درجات رسمي (Official Transcript) أو إثبات قيد؟",
+        "question_en":  "How do I request an official transcript or enrollment certificate?",
+        "answer_ar":  "قدم الطلب إلكترونياً عبر بوابة الخدمات الطلابية أو مباشرة في مكتب شؤون الطلاب، وقم بسداد الرسوم المقررة. يتم استلام المستند المعتمد خلال 2 إلى 3 أيام عمل.",
+        "answer_en":  "Submit your request via the Student Portal or directly at the Student Affairs desk, pay the processing fee, and collect your stamped official document within 2-3 business days.",
+        "keywords":  [
+                         "بيان درجات",
+                         "إثبات قيد",
+                         "Transcript",
+                         "Enrollment Certificate",
+                         "Student Affairs"
+                     ]
+    },
+    {
+        "id":  "faq_024",
+        "category":  "administrative",
+        "question_ar":  "ازاي باخد نموذج تأجيل التجنيد (نموذج 2/3 جند) للطلاب الذكور؟",
+        "question_en":  "How do male Egyptian students obtain military status delay forms (Form 2/3 Gond)?",
+        "answer_ar":  "يتوجه الطالب للقسم العسكري بمكتب شؤون الطلاب مصحوباً بالبطاقة الشخصية وأصل شهادة الميلاد المرقومة عسكرياً لاستخراج وتوثيق نموذج التأجيل التجنيدي المعتمد.",
+        "answer_en":  "Visit the Military Affairs officer at Student Affairs with your National ID and military-coded birth certificate to process and issue your official military deferment documentation.",
+        "keywords":  [
+                         "تأجيل تجنيد",
+                         "عسكري",
+                         "جند",
+                         "Military Service",
+                         "Deferment",
+                         "Form 2 Gond"
+                     ]
+    },
+    {
+        "id":  "faq_025",
+        "category":  "IT_services",
+        "question_ar":  "مش عارف ادخل على مودل (Moodle)، إزاي أعمل إعادة ضبط للباسورد؟",
+        "question_en":  "I cannot log into Moodle, how do I reset my password?",
+        "answer_ar":  "اضغط على رابط \u0027نسيت كلمة المرور\u0027 في صفحة دخول Moodle وادخل إيميلك الجامعي. ستصلك رسالة بها رابط إعادة الضبط. في حال عدم وصول الرسالة تواصل مع الدعم الفني IT Helpdesk.",
+        "answer_en":  "Click \u0027Forgot Password\u0027 on the Moodle login page using your official E-JUST email to receive a reset link. If issues persist, contact the IT Helpdesk directly.",
+        "keywords":  [
+                         "مودل",
+                         "باسورد",
+                         "Moodle",
+                         "Password Reset",
+                         "IT Support"
+                     ]
+    },
+    {
+        "id":  "faq_026",
+        "category":  "IT_services",
+        "question_ar":  "ازاي أفعّل الإيميل الجامعي الرسمي بتاع E-JUST على موبايلي؟",
+        "question_en":  "How do I set up my official E-JUST student email on my smartphone?",
+        "answer_ar":  "حمل تطبيق Google Workspace أو Gmail، واختر إضافة حساب جديد، ثم ادخل بريدك الإلكتروني الجامعي (username@ejust.edu.eg) وكلمة المرور المؤقتة التي استلمتها عند التسجيل وأنشئ كلمة مرور جديدة.",
+        "answer_en":  "Download the Gmail app, select \u0027Add Account\u0027, enter your university email (username@ejust.edu.eg) and the default password provided upon admission, then set a new secure password.",
+        "keywords":  [
+                         "إيميل",
+                         "البريد الجامعي",
+                         "Email",
+                         "Gmail",
+                         "Setup",
+                         "IT"
+                     ]
+    },
+    {
+        "id":  "faq_027",
+        "category":  "IT_services",
+        "question_ar":  "ازاي أربط جهازي بشبكة الواي فاي (Campus Wi-Fi) بالجامعة؟",
+        "question_en":  "How do I connect my device to the campus Wi-Fi network?",
+        "answer_ar":  "اختر شبكة \u0027EJUST-Student\u0027، أدخل اسم المستخدم الخاص بإيميلك الجامعي وكلمة المرور. في أجهزة Android اختر شهادة PEAP واضبط MSCHAPv2 كنوع المصادقة الفرعية.",
+        "answer_en":  "Select the \u0027EJUST-Student\u0027 network, enter your university email credentials. On Android devices, select PEAP and set Phase 2 authentication to MSCHAPv2.",
+        "keywords":  [
+                         "واي فاي",
+                         "إنترنت",
+                         "Wi-Fi",
+                         "Campus Network",
+                         "Internet",
+                         "IT"
+                     ]
+    },
+    {
+        "id":  "faq_028",
+        "category":  "academic",
+        "question_ar":  "لو محتاج دعم أكاديمي أو حاسس بصعوبة في مادة، مين المرجع ليا؟",
+        "question_en":  "Who should I reach out to if I need academic tutoring or assistance?",
+        "answer_ar":  "يمكنك التواصل أولاً مع أستاذ المادة أو المعيد خلال الساعات المكتبية (Office Hours)، أو زيارة مرشدك الأكاديمي للترشيح لمجموعات الدعم والتدريس الطلابي المتاح بالكلية.",
+        "answer_en":  "First contact your course instructor or TA during their posted Office Hours, or consult your Academic Advisor to be referred to peer-tutoring support programs.",
+        "keywords":  [
+                         "ساعات مكتبية",
+                         "مرشد",
+                         "مساعدة",
+                         "Office Hours",
+                         "Advisor",
+                         "Tutoring"
+                     ]
+    },
+    {
+        "id":  "faq_029",
+        "category":  "administrative",
+        "question_ar":  "ازاي احجز العيادة الطبية بالجامعة لو حسيت بتعب؟",
+        "question_en":  "How do I visit or book an appointment at the campus Health Clinic?",
+        "answer_ar":  "العيادة الطبية بمبنى الخدمات متاحة طوال 24 ساعة للحالات الطارئة. للكشف العادي يمكنك الزيارة المباشرة من 9:00 صباحاً حتى 3:00 عصراً للكشف الصرف المباشر للأدوية مجاناً.",
+        "answer_en":  "The Campus Clinic in the Services Building provides 24/7 emergency care. For routine consultations, visit between 9:00 AM and 3:00 PM to see a physician and receive prescribed medications free of charge.",
+        "keywords":  [
+                         "عيادة",
+                         "طبيب",
+                         "مستشفى",
+                         "Clinic",
+                         "Health",
+                         "Medical"
+                     ]
+    },
+    {
+        "id":  "faq_030",
+        "category":  "administrative",
+        "question_ar":  "إيه هي خطوات التقديم على سكن الطلاب الجدد؟",
+        "question_en":  "What are the steps to apply for student housing for new students?",
+        "answer_ar":  "بعد الحصول على القبول الأكاديمي، يتم ملء نموذج طلب السكن عبر بوابة التقديم، سداد تأمين السكن المقرر، ورفع الشهادة الطبية المعتمدة قبل موعد تسكين الفصل الدراسي.",
+        "answer_en":  "Upon academic admission, complete the online housing request form, pay the required dorm deposit fee, and upload an approved medical health certificate prior to housing check-in date.",
+        "keywords":  [
+                         "تسكين",
+                         "سكن جديد",
+                         "Housing Application",
+                         "Dorm Deposit",
+                         "Check-in"
+                     ]
+    }
+]
