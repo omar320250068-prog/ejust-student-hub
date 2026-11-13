@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { asc, count, eq, sql } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -21,6 +22,8 @@ function slugify(value: string) {
 }
 
 async function loadConsole() {
+  await connection();
+
   const session = await auth();
 
   if (session?.user?.role !== "ADMIN") {

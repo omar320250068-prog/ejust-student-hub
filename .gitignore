@@ -46,3 +46,14 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# python venv artifacts (stray)
+.venv/
+/Lib/
+/pyvenv.cfg
+/scripts/python*.exe
+/scripts/pip*.exe
+/scripts/activate*
+/scripts/Activate.ps1
+/scripts/deactivate.bat
+
