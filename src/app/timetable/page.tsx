@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, Download, Plus, Trash2, X } from "lucide-react";
 import {
   DAYS,
@@ -82,41 +82,48 @@ export default function TimetablePage() {
   const { t } = useLanguage();
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   const [blocks, setBlocks] = useState<ClassBlock[]>(DEFAULT_CSIT_FALL_2026);
-  const [saved, setSaved] = useState<SavedTimetable>({ version: 1, schedules: {} });
+  // Persisted snapshots live in a ref: they mirror localStorage, never drive renders.
+  const savedRef = useRef<SavedTimetable>({ version: 1, schedules: {} });
   const [ready, setReady] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const legacy = LEGACY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
-      if (raw) {
-        const parsed = JSON.parse(raw) as SavedTimetable;
-        if (parsed?.version === 1 && parsed.schedules) {
-          setSaved(parsed);
-          setBlocks(parsed.schedules[profileKey(DEFAULT_PROFILE)] ?? defaultScheduleFor(DEFAULT_PROFILE));
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const legacy = LEGACY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+        if (raw) {
+          const parsed = JSON.parse(raw) as SavedTimetable;
+          if (parsed?.version === 1 && parsed.schedules) {
+            savedRef.current = parsed;
+            setBlocks(parsed.schedules[profileKey(DEFAULT_PROFILE)] ?? defaultScheduleFor(DEFAULT_PROFILE));
+          }
+        } else if (legacy) {
+          const legacyBlocks = JSON.parse(legacy) as ClassBlock[];
+          if (Array.isArray(legacyBlocks)) {
+            const migrated = { version: 1 as const, schedules: { [profileKey(DEFAULT_PROFILE)]: legacyBlocks } };
+            savedRef.current = migrated;
+            setBlocks(legacyBlocks);
+          }
         }
-      } else if (legacy) {
-        const legacyBlocks = JSON.parse(legacy) as ClassBlock[];
-        if (Array.isArray(legacyBlocks)) {
-          const migrated = { version: 1 as const, schedules: { [profileKey(DEFAULT_PROFILE)]: legacyBlocks } };
-          setSaved(migrated);
-          setBlocks(legacyBlocks);
-        }
+      } catch {
+        setBlocks(defaultScheduleFor(DEFAULT_PROFILE));
+      } finally {
+        setReady(true);
       }
-    } catch {
-      setBlocks(defaultScheduleFor(DEFAULT_PROFILE));
-    } finally {
-      setReady(true);
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!ready) return;
-    const next = { ...saved, schedules: { ...saved.schedules, [profileKey(profile)]: blocks } };
-    setSaved(next);
+    const next = {
+      ...savedRef.current,
+      schedules: { ...savedRef.current.schedules, [profileKey(profile)]: blocks },
+    };
+    savedRef.current = next;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     localStorage.setItem("ejust:timetable", JSON.stringify(blocks));
     localStorage.setItem("ejust-timetable-v1", JSON.stringify(blocks));
@@ -130,7 +137,7 @@ export default function TimetablePage() {
   function changeProfile<K extends keyof Profile>(key: K, value: Profile[K]) {
     const nextProfile = { ...profile, [key]: value } as Profile;
     setProfile(nextProfile);
-    setBlocks(saved.schedules[profileKey(nextProfile)] ?? defaultScheduleFor(nextProfile));
+    setBlocks(savedRef.current.schedules[profileKey(nextProfile)] ?? defaultScheduleFor(nextProfile));
   }
 
   function removeBlock(id: string) {

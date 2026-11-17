@@ -22,6 +22,8 @@ export interface DbHit {
   text: string;
   textAr: string | null;
   sourceType: DbSourceType;
+  /** For verified Q&A: who wrote the promoted answer. */
+  answerKind?: "ta" | "peer";
   /** Reciprocal-rank-fusion score across the individual retrievers. */
   score: number;
   metadata: Record<string, string | number | null>;
@@ -57,12 +59,14 @@ async function searchChunks(query: string, limit: number) {
       chunkIndex: handbookChunks.chunkIndex,
       handbookTitle: handbooks.title,
       handbookYear: handbooks.academicYear,
+      qaAnswer: qaThreads.taAnswer,
       rank: sql<number>`ts_rank_cd(${handbookChunks.tsv}, websearch_to_tsquery('simple', ${trimmed}))`.as(
         "rank"
       ),
     })
     .from(handbookChunks)
     .leftJoin(handbooks, eq(handbooks.id, handbookChunks.handbookId))
+    .leftJoin(qaThreads, eq(qaThreads.id, handbookChunks.sourceId))
     .where(sql`${handbookChunks.tsv} @@ websearch_to_tsquery('simple', ${trimmed})`)
     .orderBy(desc(sql`rank`))
     .limit(limit);
@@ -174,7 +178,8 @@ export async function retrieveFromDb(
           : (chunk.handbookTitle ?? chunk.section ?? "Handbook passage"),
         text: chunk.content,
         textAr: chunk.contentAr,
-        sourceType: "handbook",
+        sourceType: isQa ? "qa" : "handbook",
+        answerKind: isQa ? (chunk.qaAnswer ? "ta" : "peer") : undefined,
         metadata: {
           source: isQa ? "qa" : "handbook",
           section: chunk.section,
@@ -195,6 +200,7 @@ export async function retrieveFromDb(
         text: `Q: ${thread.question}\nA: ${answer}`,
         textAr: thread.taAnswerAr,
         sourceType: "qa",
+        answerKind: thread.taAnswer ? "ta" : "peer",
         metadata: {
           source: "qa",
           verifiedAt: thread.verifiedAt ? thread.verifiedAt.toISOString() : null,
@@ -240,7 +246,7 @@ export function dbHitsToRetrievedDocs(hits: DbHit[]): RetrievedDoc[] {
     const doc: KnowledgeDoc = {
       id: hit.id,
       title: hit.title,
-      category: `db:${hit.sourceType}`,
+      category: `db:${hit.sourceType}${hit.answerKind ? `:${hit.answerKind}` : ""}`,
       text: [hit.text, hit.textAr].filter(Boolean).join("\n"),
       keywords: Object.values(hit.metadata)
         .filter((value): value is string => typeof value === "string")

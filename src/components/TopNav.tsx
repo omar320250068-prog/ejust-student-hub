@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText } from "lucide-react";
+import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText, MessageCircleQuestion, ShieldCheck, Presentation } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSelector from "./LanguageSelector";
@@ -17,14 +17,27 @@ const LINKS = [
   { href: "/exams", key: "exams" as const, icon: AlarmClock },
   { href: "/cafeteria", key: "cafeteria" as const, icon: UtensilsCrossed },
   { href: "/scholarships", key: "scholarships" as const, icon: Award },
+  { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion },
   { href: "/assistant", key: "assistant" as const, icon: Bot },
   { href: "/contribute", key: "contribute" as const, icon: FileText },
 ];
+
+const TA_LINK = { href: "/ta", key: "ta" as const, icon: Presentation };
+const ADMIN_LINK = { href: "/admin", key: "admin" as const, icon: ShieldCheck };
 
 export default function TopNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const { t } = useLanguage();
+
+  const isStaff =
+    session?.user?.role === "ADMIN" || session?.user?.taStatus === "APPROVED";
+  const isAdmin = session?.user?.role === "ADMIN";
+  const links = [
+    ...LINKS,
+    ...(isStaff ? [TA_LINK] : []),
+    ...(isAdmin ? [ADMIN_LINK] : []),
+  ];
 
   return (
     <header className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white/90 px-4 backdrop-blur-md print:hidden dark:border-slate-800 dark:bg-slate-950/85">
@@ -35,7 +48,7 @@ export default function TopNav() {
         </span>
       </div>
       <nav className="flex gap-1 overflow-x-auto">
-        {LINKS.map(({ href, key, icon: Icon }) => {
+        {links.map(({ href, key, icon: Icon }) => {
           const label = t(`nav.${key}`);
           const active = pathname === href;
           return (

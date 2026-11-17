@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { handbookChunks, qaThreads } from "@/db/schema";
 import { answer } from "./rag/answer";
@@ -271,6 +271,26 @@ export async function rejectThread(input: {
   return updated
     ? { ok: true, thread: updated }
     : { ok: false, error: "Thread not found", status: 404 };
+}
+
+/** Threads still waiting on an answer or a verification. */
+export async function countActiveThreads(): Promise<number> {
+  await connection();
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(qaThreads)
+    .where(
+      inArray(qaThreads.status, [
+        "OPEN",
+        "ESCALATED",
+        "ASSIGNED",
+        "PEER_ANSWERED",
+        "TA_ANSWERED",
+      ])
+    );
+
+  return row?.value ?? 0;
 }
 
 /** Ranked passages the assistant would use, exposed for the ask flow. */

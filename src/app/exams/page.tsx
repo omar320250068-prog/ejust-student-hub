@@ -10,7 +10,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { AlarmClock, Plus, Trash2, Brain, CalendarDays, CalendarPlus } from "lucide-react";
+import { AlarmClock, Plus, Trash2, Brain, CalendarDays } from "lucide-react";
 import {
   EXAM_TYPES,
   allocateStudy,
@@ -135,9 +135,11 @@ export default function ExamsPage() {
   }
 
   const nextExam = upcoming[0];
-  const countdown = nextExam
-    ? Math.max(0, new Date(nextExam.exam.date).getTime() - (nowMs ?? Date.now()))
-    : 0;
+  // `upcoming` is empty until `nowMs` is hydrated, so there is no safe fallback clock.
+  const countdown =
+    nextExam && nowMs !== null
+      ? Math.max(0, new Date(nextExam.exam.date).getTime() - nowMs)
+      : 0;
   const countdownLabel = `${Math.floor(countdown / 86_400_000)}d ${String(Math.floor(countdown / 3_600_000) % 24).padStart(2, "0")}h ${String(Math.floor(countdown / 60_000) % 60).padStart(2, "0")}m`;
 
   return (

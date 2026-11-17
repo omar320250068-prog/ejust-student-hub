@@ -21,6 +21,8 @@ export async function GET() {
     viewer: {
       tier: viewer.effectiveTier,
       points: viewer.points,
+      isStaff: viewer.isStaff,
+      taStatus: viewer.taStatus,
       privileges: viewer.privileges,
     },
     threads,

@@ -1,15 +1,17 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { asc, count, eq, sql } from "drizzle-orm";
+import { asc, count, eq, inArray, sql } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { contributions, users } from "@/db/schema";
+import { contributions, qaThreads, users } from "@/db/schema";
 import { meritForCategory, scanContribution } from "@/lib/contribution-scan";
+import { toStudentTier } from "@/lib/merit-server";
 import RegistrarOversightConsole, {
   type AdminMetrics,
   type AdminSubmission,
 } from "./RegistrarOversightConsole";
+import type { QaQueueRow, TaApplicationRow } from "./TierPanels";
 
 function slugify(value: string) {
   return (
@@ -30,7 +32,7 @@ async function loadConsole() {
     redirect("/dashboard");
   }
 
-  const [rows, studentRows, approvedRows, meritRows] = await Promise.all([
+  const [rows, studentRows, approvedRows, meritRows, taRows, qaRows] = await Promise.all([
     db
       .select({
         id: contributions.id,
@@ -58,6 +60,37 @@ async function loadConsole() {
       .select({ value: sql<number>`coalesce(sum(${contributions.meritPoints}), 0)::int` })
       .from(contributions)
       .where(eq(contributions.status, "approved")),
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        note: users.taNote,
+        role: users.role,
+        taStatus: users.taStatus,
+        meritPoints: users.meritPoints,
+        meritTierOverride: users.meritTierOverride,
+        autoApproveRevokedAt: users.autoApproveRevokedAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.taStatus, "PENDING"))
+      .orderBy(asc(users.updatedAt))
+      .limit(100),
+    db
+      .select({
+        id: qaThreads.id,
+        question: qaThreads.question,
+        questionAr: qaThreads.questionAr,
+        peerAnswer: qaThreads.peerAnswer,
+        taAnswer: qaThreads.taAnswer,
+        status: qaThreads.status,
+        createdAt: qaThreads.createdAt,
+      })
+      .from(qaThreads)
+      .where(inArray(qaThreads.status, ["PEER_ANSWERED", "TA_ANSWERED"]))
+      .orderBy(asc(qaThreads.createdAt))
+      .limit(100),
   ]);
 
   const submissions: AdminSubmission[] = rows.map((row) => {
@@ -106,11 +139,33 @@ async function loadConsole() {
     meritAwarded: meritRows[0]?.value ?? 0,
   };
 
+  const taApplications: TaApplicationRow[] = taRows.map((row) => ({
+    id: row.id,
+    name: row.name ?? "Unnamed student",
+    email: row.email ?? "unknown",
+    note: row.note,
+    points: row.meritPoints,
+    tier: toStudentTier(row).tier,
+    appliedAt: row.updatedAt.toISOString(),
+  }));
+
+  const qaQueue: QaQueueRow[] = qaRows.map((row) => ({
+    id: row.id,
+    question: row.question,
+    questionAr: row.questionAr,
+    peerAnswer: row.peerAnswer,
+    taAnswer: row.taAnswer,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  }));
+
   return {
     submissions,
     metrics,
     adminName: session.user.name ?? session.user.email ?? "admin",
     generatedAt: new Date().toISOString(),
+    taApplications,
+    qaQueue,
   };
 }
 
@@ -123,6 +178,8 @@ async function AdminData() {
       metrics={data.metrics}
       adminName={data.adminName}
       generatedAt={data.generatedAt}
+      taApplications={data.taApplications}
+      qaQueue={data.qaQueue}
     />
   );
 }

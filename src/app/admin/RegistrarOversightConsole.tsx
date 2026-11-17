@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { ScanVerdict } from "@/lib/contribution-scan";
 import { reviewSubmission } from "./actions";
+import TierPanels, { type QaQueueRow, type TaApplicationRow } from "./TierPanels";
 
 export type AdminSubmission = {
   id: string;
@@ -78,12 +79,17 @@ export default function RegistrarOversightConsole({
   metrics,
   adminName,
   generatedAt,
+  taApplications,
+  qaQueue,
 }: {
   submissions: AdminSubmission[];
   metrics: AdminMetrics;
   adminName: string;
   generatedAt: string;
+  taApplications: TaApplicationRow[];
+  qaQueue: QaQueueRow[];
 }) {
+  const [tab, setTab] = useState<"submissions" | "tiers">("submissions");
   const [items, setItems] = useState(submissions);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -192,6 +198,45 @@ export default function RegistrarOversightConsole({
           ))}
         </section>
 
+        <nav className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              { id: "submissions" as const, label: "Submission Review", count: pendingCount },
+              {
+                id: "tiers" as const,
+                label: "Tiers, TA & Q&A",
+                count: taApplications.length + qaQueue.length,
+              },
+            ]
+          ).map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => setTab(entry.id)}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition ${
+                tab === entry.id
+                  ? "border-cyan-700 bg-cyan-950/70 text-cyan-300"
+                  : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {entry.label}
+              {entry.count > 0 && (
+                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-200">
+                  {entry.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {tab === "tiers" ? (
+          <TierPanels
+            taApplications={taApplications}
+            qaQueue={qaQueue}
+            notify={(kind, text) => setToast({ kind, text })}
+          />
+        ) : (
+          <>
         <section className="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#0b132b]/80">
           <div className="flex flex-col gap-3 border-b border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -430,6 +475,8 @@ export default function RegistrarOversightConsole({
             ))}
           </div>
         </section>
+          </>
+        )}
       </main>
 
       {toast && (

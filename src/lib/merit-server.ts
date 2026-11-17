@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiQueryLog, meritEvents, users } from "@/db/schema";
 import {
@@ -258,6 +258,52 @@ export async function consumeAiQuota(
     quota,
     entryId: (row?.entryId as string | null) ?? null,
   };
+}
+
+/**
+ * Read today's quota usage without spending a slot.
+ *
+ * The dashboard needs the remaining count up front; the assistant's own request
+ * is the one that consumes a slot.
+ */
+export async function getAiQuotaUsage(userId: string): Promise<number> {
+  await connection();
+
+  const result = await db.execute(sql`
+    select count(*)::int as "used"
+      from "ai_query_log"
+     where "userId" = ${userId}
+       and "createdAt" >= date_trunc('day', now())
+  `);
+
+  return Number(rowsOf(result)[0]?.used ?? 0);
+}
+
+/**
+ * Move a student into the TA review queue.
+ *
+ * Only `NONE` and `REJECTED` may apply, so a double submit cannot overwrite a
+ * pending application or quietly reset an approval.
+ */
+export async function applyForTa(
+  userId: string,
+  note?: string | null
+): Promise<boolean> {
+  await connection();
+
+  const [updated] = await db
+    .update(users)
+    .set({ taStatus: "PENDING", taNote: note ?? null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(users.id, userId),
+        eq(users.role, "STUDENT"),
+        inArray(users.taStatus, ["NONE", "REJECTED"])
+      )
+    )
+    .returning({ id: users.id });
+
+  return Boolean(updated);
 }
 
 /** Give a quota slot back when the request it paid for failed. */

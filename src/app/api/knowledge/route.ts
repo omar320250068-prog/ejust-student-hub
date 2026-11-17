@@ -118,6 +118,10 @@ export async function GET(request: Request) {
       id: entry.doc.id,
       title: entry.doc.title,
       category: entry.doc.category,
+      sourceType: entry.doc.category.startsWith("db:")
+        ? entry.doc.category.slice(3)
+        : "static",
+      snippet: entry.doc.text.replace(/\s+/g, " ").trim().slice(0, 320),
       rrf: Number(entry.score.toFixed(3)),
     })),
   });

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   AlarmClock, ArrowUpRight, Award, BookOpen, CalendarDays, Coffee,
-  GraduationCap, LayoutGrid, Map, MapPin, ShieldCheck, Sparkles, Sun,
-  UtensilsCrossed, Wallet,
+  GraduationCap, LayoutGrid, Map, MessageCircleQuestion, ShieldCheck, Sparkles, Sun,
+  Wallet,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
@@ -15,6 +15,7 @@ import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
 import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
 import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafeteria";
 import CampusBackground from "@/components/CampusBackground";
+import MeritPanel from "@/components/MeritPanel";
 
 const KEYS = {
   timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
@@ -90,6 +91,7 @@ export default function TodayPage() {
     { href: "/services/notes", key: "notes" as const, icon: BookOpen, color: "from-amber-300 to-orange-500" },
     { href: "/exams", key: "exams" as const, icon: CalendarDays, color: "from-rose-400 to-red-500" },
     { href: "/cafeteria", key: "cafeteria" as const, icon: Coffee, color: "from-emerald-300 to-teal-500" },
+    { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion, color: "from-cyan-300 to-sky-500" },
     { href: "/admin", key: "admin" as const, icon: ShieldCheck, color: "from-slate-300 to-slate-500" },
   ];
 
@@ -112,6 +114,8 @@ export default function TodayPage() {
             <Metric label={t("dashboard.food")} value={model?.budget !== null && model?.budget !== undefined ? formatEgp(model.trayTotal) : "—"} />
           </div>
         </motion.section>
+
+        <MeritPanel className="mt-6" />
 
         <section className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-3">

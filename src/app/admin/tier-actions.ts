@@ -1,7 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getStudentTier, setAutoApproveRevoked, setMeritTierOverride, setTaReview } from "@/lib/merit-server";
+import { desc, ilike, or } from "drizzle-orm";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import {
+  getStudentTier,
+  setAutoApproveRevoked,
+  setMeritTierOverride,
+  setTaReview,
+  toStudentTier,
+} from "@/lib/merit-server";
 import { requireAdmin } from "@/lib/permissions";
 import type { MeritTier } from "@/lib/merit";
 
@@ -9,12 +18,73 @@ export type TierActionResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
 
+export interface StudentRow {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: "STUDENT" | "ADMIN" | "TA";
+  taStatus: string;
+  points: number;
+  tier: MeritTier;
+  effectiveTier: MeritTier;
+  override: MeritTier | null;
+  autoApproveRevoked: boolean;
+}
+
 const TIERS: MeritTier[] = [
   "EXPLORER",
   "PEER_HELPER",
   "CAMPUS_AMBASSADOR",
   "EJUST_MENTOR",
 ];
+
+/**
+ * Find students by name or email for the merit/override panel.
+ *
+ * An empty query returns the highest-point accounts, which is the list an admin
+ * actually wants when they open the tab.
+ */
+export async function searchStudents(query: string): Promise<StudentRow[]> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return [];
+
+  const needle = query.trim();
+  const filter = needle
+    ? or(ilike(users.name, `%${needle}%`), ilike(users.email, `%${needle}%`))
+    : undefined;
+
+  const rows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      taStatus: users.taStatus,
+      meritPoints: users.meritPoints,
+      meritTierOverride: users.meritTierOverride,
+      autoApproveRevokedAt: users.autoApproveRevokedAt,
+    })
+    .from(users)
+    .where(filter)
+    .orderBy(desc(users.meritPoints))
+    .limit(20);
+
+  return rows.map((row) => {
+    const state = toStudentTier(row);
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      taStatus: row.taStatus,
+      points: state.points,
+      tier: state.tier,
+      effectiveTier: state.effectiveTier,
+      override: state.override,
+      autoApproveRevoked: state.autoApproveRevoked,
+    };
+  });
+}
 
 /**
  * Pin a student's tier regardless of points.
@@ -92,6 +162,9 @@ export async function reviewTaApplication(
   if (!target) return { ok: false, error: "Applicant not found." };
   if (target.role === "ADMIN") {
     return { ok: false, error: "Admins are not TA applicants." };
+  }
+  if (target.taStatus !== "PENDING") {
+    return { ok: false, error: "This application is no longer pending." };
   }
 
   await setTaReview(userId, decision, guard.viewer.userId, note ?? null);
