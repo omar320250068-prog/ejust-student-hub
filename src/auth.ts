@@ -7,6 +7,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { studentProfiles, users } from "@/db/schema";
 import { recordAuthError } from "@/lib/auth-error-store";
+import { resolveMeritTier, type MeritTier } from "@/lib/merit";
+import type { TaStatus } from "@/types/next-auth";
 
 const URL_ENV_KEYS = ["AUTH_URL", "NEXTAUTH_URL"] as const;
 
@@ -96,7 +98,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (userId) {
         const [userRecord, profile] = await Promise.all([
           db
-            .select({ role: users.role })
+            .select({
+              role: users.role,
+              taStatus: users.taStatus,
+              meritPoints: users.meritPoints,
+              meritTierOverride: users.meritTierOverride,
+            })
             .from(users)
             .where(eq(users.id, userId))
             .limit(1),
@@ -109,6 +116,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         token.sub = userId;
         token.role = userRecord[0]?.role ?? user?.role ?? "STUDENT";
+        token.taStatus = userRecord[0]?.taStatus ?? user?.taStatus ?? "NONE";
+        token.meritPoints = userRecord[0]?.meritPoints ?? 0;
+        token.meritTierOverride = userRecord[0]?.meritTierOverride ?? null;
         token.hasCompletedProfile = profile.length > 0;
       }
 
@@ -116,11 +126,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     session({ session, token }) {
       if (session.user && token.sub) {
-        const role = token.role === "ADMIN" ? "ADMIN" : "STUDENT";
+        const role =
+          token.role === "ADMIN"
+            ? "ADMIN"
+            : token.role === "TA"
+              ? "TA"
+              : "STUDENT";
         const hasCompletedProfile = token.hasCompletedProfile === true;
+        const meritPoints =
+          typeof token.meritPoints === "number" ? token.meritPoints : 0;
+        const meritTierOverride = (
+          ["EXPLORER", "PEER_HELPER", "CAMPUS_AMBASSADOR", "EJUST_MENTOR"] as const
+        ).includes(token.meritTierOverride as never)
+          ? (token.meritTierOverride as MeritTier)
+          : null;
+        const taStatus = (
+          ["NONE", "PENDING", "APPROVED", "REJECTED"] as const
+        ).includes(token.taStatus as never)
+          ? (token.taStatus as TaStatus)
+          : "NONE";
+        const meritTier = resolveMeritTier(meritPoints, meritTierOverride);
 
         session.user.id = token.sub;
         session.user.role = role;
+        session.user.taStatus = taStatus;
+        session.user.meritPoints = meritPoints;
+        session.user.meritTier = meritTier;
         session.user.hasCompletedProfile = hasCompletedProfile;
       }
       return session;

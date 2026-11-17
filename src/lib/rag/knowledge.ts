@@ -3,7 +3,12 @@ import { SCHOLARSHIPS } from "@/data/scholarships";
 import { menuFor, DAYS, PERIODS, formatEgp } from "@/data/cafeteria";
 import { GRADE_POINTS } from "@/lib/gpa";
 import faqsData from "@/data/faqs.json";
-import { tokenize } from "./retriever";
+import { retrieve, tokenize, type RetrievedDoc } from "./retriever";
+import {
+  dbHitsToRetrievedDocs,
+  retrieveFromDb,
+  type DbHit,
+} from "./db-retriever";
 
 /**
  * A retrievable passage. `id` is the stable join key when this corpus is later
@@ -402,4 +407,95 @@ export function isInDomain(query: string): boolean {
 
   const stems = domainStems();
   return tokenize(query).some((token) => stems.has(token));
+}
+
+/** Convert a live DB hit into the same passage shape the static corpus uses. */
+export function dbHitToKnowledgeDoc(hit: DbHit): KnowledgeDoc {
+  return {
+    id: hit.id,
+    title: hit.title,
+    category: `db:${hit.sourceType}`,
+    text: [hit.text, hit.textAr].filter(Boolean).join("\n"),
+    keywords: Object.values(hit.metadata)
+      .filter((value): value is string => typeof value === "string")
+      .slice(0, 6),
+  };
+}
+
+/**
+ * Live passages for a query, straight from Postgres.
+ *
+ * Deliberately tolerant: the assistant must keep answering from the static
+ * corpus when the database is unreachable or empty, so a failed lookup yields
+ * `[]` instead of an error. `retrieveFromDb` itself is wrapped in
+ * `await connection()`, which keeps the caller out of the prerender path.
+ */
+export async function dbKnowledgeDocs(
+  query: string,
+  limit = 6
+): Promise<KnowledgeDoc[]> {
+  try {
+    const hits = await retrieveFromDb(query, { limit });
+    return hits.map(dbHitToKnowledgeDoc);
+  } catch {
+    return [];
+  }
+}
+
+/** Static corpus + live DB passages, de-duplicated by id. */
+export async function hybridKnowledge(
+  query: string,
+  limit = 6
+): Promise<KnowledgeDoc[]> {
+  const base = knowledgeBase();
+  const live = await dbKnowledgeDocs(query, limit);
+  const seen = new Set(base.map((doc) => doc.id));
+  return [...base, ...live.filter((doc) => !seen.has(doc.id))];
+}
+
+/**
+ * Fused ranking for the assistant: lexical BM25 over the static corpus plus
+ * reciprocal-rank fusion with the database retrievers.
+ *
+ * Scores are rank-derived and therefore only comparable inside a single call —
+ * they order results, they do not express confidence. `answer()` keeps its own
+ * calibrated lexical threshold for the decision to cite.
+ */
+export async function hybridRetrieve(
+  query: string,
+  k = 4
+): Promise<RetrievedDoc[]> {
+  const lexical = retrieve(query, k * 2);
+  let live: RetrievedDoc[] = [];
+
+  try {
+    live = dbHitsToRetrievedDocs(await retrieveFromDb(query, { limit: k }));
+  } catch {
+    live = [];
+  }
+
+  const RRF_K = 60;
+  const fused = new Map<string, RetrievedDoc>();
+
+  lexical.forEach((result, index) => {
+    fused.set(result.doc.id, { ...result, score: 1 / (RRF_K + index + 1) });
+  });
+
+  live.forEach((result, index) => {
+    const existing = fused.get(result.doc.id);
+    const increment = 1 / (RRF_K + index + 1);
+    if (existing) {
+      existing.score += increment;
+      existing.matched = Array.from(new Set([...existing.matched, ...result.matched]));
+      return;
+    }
+    fused.set(result.doc.id, { ...result, score: increment });
+  });
+
+  const max = Math.max(...[...fused.values()].map((entry) => entry.score), 1e-9);
+
+  return [...fused.values()]
+    .map((entry) => ({ ...entry, score: Math.round((entry.score / max) * 400) / 100 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
 }

@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 const tsvector = customType<{ data: string }>({
@@ -24,7 +25,21 @@ const tsvector = customType<{ data: string }>({
   },
 });
 
-export const userRole = pgEnum("user_role", ["STUDENT", "ADMIN"]);
+export const userRole = pgEnum("user_role", ["STUDENT", "ADMIN", "TA"]);
+
+export const taStatus = pgEnum("ta_status", [
+  "NONE",
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+]);
+
+export const meritTier = pgEnum("merit_tier", [
+  "EXPLORER",
+  "PEER_HELPER",
+  "CAMPUS_AMBASSADOR",
+  "EJUST_MENTOR",
+]);
 
 export const users = pgTable("user", {
   id: text("id")
@@ -37,9 +52,17 @@ export const users = pgTable("user", {
   passwordHash: text("passwordHash"),
   role: userRole("role").notNull().default("STUDENT"),
   meritPoints: integer("meritPoints").notNull().default(0),
+  meritTierOverride: meritTier("meritTierOverride"),
+  taStatus: taStatus("taStatus").notNull().default("NONE"),
+  taAppliedAt: timestamp("taAppliedAt", { mode: "date" }),
+  taReviewedAt: timestamp("taReviewedAt", { mode: "date" }),
+  taReviewedBy: text("taReviewedBy").references((): AnyPgColumn => users.id, {
+    onDelete: "set null",
+  }),
+  taNote: text("taNote"),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-});
+}, (t) => [index("user_ta_status_idx").on(t.taStatus, t.createdAt)]);
 
 export const studentProfiles = pgTable(
   "student_profile",
@@ -161,6 +184,13 @@ export const weekday = pgEnum("weekday", [
   "SATURDAY",
 ]);
 
+export const meetingType = pgEnum("meeting_type", [
+  "LECTURE",
+  "LAB",
+  "SECTION",
+  "TUTORIAL",
+]);
+
 export const courses = pgTable(
   "course",
   {
@@ -201,6 +231,8 @@ export const courseMeetings = pgTable(
     room: text("room"),
     group: text("group"),
     instructor: text("instructor"),
+    meetingType: meetingType("meetingType").notNull().default("LECTURE"),
+    taId: text("taId").references(() => users.id, { onDelete: "set null" }),
   },
   (t) => [
     uniqueIndex("course_meeting_slot_unique").on(
@@ -213,6 +245,7 @@ export const courseMeetings = pgTable(
     ),
     index("course_meeting_day_time_idx").on(t.day, t.startTime),
     index("course_meeting_room_idx").on(t.building, t.room),
+    index("course_meeting_ta_idx").on(t.taId),
   ]
 );
 
@@ -234,11 +267,19 @@ export const facultyOffices = pgTable(
       .notNull()
       .default([]),
     officeHoursNote: text("officeHoursNote"),
+    userId: text("userId").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    isInOffice: boolean("isInOffice").notNull().default(false),
+    statusUpdatedAt: timestamp("statusUpdatedAt", { mode: "date" }),
+    statusNote: text("statusNote"),
     updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("faculty_office_unique").on(t.name, t.department),
+    uniqueIndex("faculty_office_user_unique").on(t.userId),
     index("faculty_office_dept_idx").on(t.department),
+    index("faculty_office_live_idx").on(t.isInOffice),
   ]
 );
 
@@ -307,26 +348,145 @@ export const handbookChunks = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    handbookId: text("handbookId")
-      .notNull()
-      .references(() => handbooks.id, { onDelete: "cascade" }),
+    handbookId: text("handbookId").references(() => handbooks.id, {
+      onDelete: "cascade",
+    }),
     chunkIndex: integer("chunkIndex").notNull(),
     section: text("section"),
     pageFrom: integer("pageFrom"),
     pageTo: integer("pageTo"),
     content: text("content").notNull(),
     contentAr: text("contentAr"),
+    language: text("language").notNull().default("MIXED"),
+    contentHash: text("contentHash"),
     tokenCount: integer("tokenCount"),
     keywords: json("keywords").$type<string[]>().notNull().default([]),
     embedding: vector("embedding", { dimensions: 1536 }),
+    embeddingAr: vector("embeddingAr", { dimensions: 1536 }),
     embeddingModel: text("embeddingModel"),
+    sourceType: text("sourceType").notNull().default("HANDBOOK"),
+    sourceId: text("sourceId"),
     tsv: tsvector("tsv").generatedAlwaysAs(
       sql`to_tsvector('simple', coalesce("content", '') || ' ' || coalesce("contentAr", ''))`
     ),
   },
   (t) => [
-    unique("handbook_chunk_unique").on(t.handbookId, t.chunkIndex),
+    uniqueIndex("handbook_chunk_unique")
+      .on(t.handbookId, t.chunkIndex)
+      .where(sql`${t.handbookId} is not null`),
+    uniqueIndex("handbook_chunk_source_unique")
+      .on(t.sourceType, t.sourceId, t.chunkIndex)
+      .where(sql`${t.sourceId} is not null`),
     index("handbook_chunk_handbook_idx").on(t.handbookId),
+    index("handbook_chunk_source_idx").on(t.sourceType, t.sourceId),
     index("handbook_chunk_tsv_idx").using("gin", t.tsv),
+  ]
+);
+
+export const announcementKind = pgEnum("announcement_kind", [
+  "LAB_CHANGE",
+  "ROOM_CHANGE",
+  "CANCELLATION",
+  "RESCHEDULE",
+  "GENERAL",
+]);
+
+export const courseAnnouncements = pgTable(
+  "course_announcement",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    courseId: text("courseId")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    meetingId: text("meetingId").references(() => courseMeetings.id, {
+      onDelete: "cascade",
+    }),
+    authorId: text("authorId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: announcementKind("kind").notNull().default("GENERAL"),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    bodyAr: text("bodyAr"),
+    building: text("building"),
+    room: text("room"),
+    effectiveFrom: timestamp("effectiveFrom", { mode: "date" }),
+    expiresAt: timestamp("expiresAt", { mode: "date" }),
+    isPinned: boolean("isPinned").notNull().default(false),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("course_announcement_feed_idx").on(
+      t.courseId,
+      t.isPinned,
+      t.createdAt
+    ),
+    index("course_announcement_author_idx").on(t.authorId),
+  ]
+);
+
+export const qaStatus = pgEnum("qa_status", [
+  "OPEN",
+  "ESCALATED",
+  "ASSIGNED",
+  "PEER_ANSWERED",
+  "TA_ANSWERED",
+  "VERIFIED",
+  "REJECTED",
+  "CLOSED",
+]);
+
+export const qaThreads = pgTable(
+  "qa_thread",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    courseId: text("courseId").references(() => courses.id, {
+      onDelete: "set null",
+    }),
+    assignedTaId: text("assignedTaId").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: qaStatus("status").notNull().default("OPEN"),
+    language: text("language").notNull().default("EN"),
+    question: text("question").notNull(),
+    questionAr: text("questionAr"),
+    ragAnswer: text("ragAnswer"),
+    ragConfidence: numeric("ragConfidence", { precision: 4, scale: 3 }),
+    ragDocIds: json("ragDocIds").$type<string[]>().notNull().default([]),
+    peerAnswer: text("peerAnswer"),
+    peerAnswerAr: text("peerAnswerAr"),
+    peerAnsweredBy: text("peerAnsweredBy").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    peerAnsweredAt: timestamp("peerAnsweredAt", { mode: "date" }),
+    taAnswer: text("taAnswer"),
+    taAnswerAr: text("taAnswerAr"),
+    taAnsweredBy: text("taAnsweredBy").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    taAnsweredAt: timestamp("taAnsweredAt", { mode: "date" }),
+    verifiedBy: text("verifiedBy").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    verifiedAt: timestamp("verifiedAt", { mode: "date" }),
+    promotedChunkId: text("promotedChunkId").references(
+      () => handbookChunks.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("qa_thread_queue_idx").on(t.status, t.assignedTaId, t.createdAt),
+    index("qa_thread_course_idx").on(t.courseId, t.status),
+    index("qa_thread_user_idx").on(t.userId),
+    index("qa_thread_promoted_idx").on(t.promotedChunkId),
   ]
 );
