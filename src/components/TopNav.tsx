@@ -17,7 +17,7 @@ const LINKS = [
   { href: "/exams", key: "exams" as const, icon: AlarmClock },
   { href: "/cafeteria", key: "cafeteria" as const, icon: UtensilsCrossed },
   { href: "/scholarships", key: "scholarships" as const, icon: Award },
-  { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion },
+  { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion, requiresAuth: true },
   { href: "/assistant", key: "assistant" as const, icon: Bot },
   { href: "/contribute", key: "contribute" as const, icon: FileText },
 ];
@@ -33,8 +33,9 @@ export default function TopNav() {
   const isStaff =
     session?.user?.role === "ADMIN" || session?.user?.taStatus === "APPROVED";
   const isAdmin = session?.user?.role === "ADMIN";
+  const isAuthenticated = status === "authenticated";
   const links = [
-    ...LINKS,
+    ...LINKS.filter((link) => !("requiresAuth" in link) || isAuthenticated),
     ...(isStaff ? [TA_LINK] : []),
     ...(isAdmin ? [ADMIN_LINK] : []),
   ];
