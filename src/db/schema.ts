@@ -60,6 +60,11 @@ export const users = pgTable("user", {
     onDelete: "set null",
   }),
   taNote: text("taNote"),
+  autoApproveRevokedAt: timestamp("autoApproveRevokedAt", { mode: "date" }),
+  autoApproveRevokedBy: text("autoApproveRevokedBy").references(
+    (): AnyPgColumn => users.id,
+    { onDelete: "set null" }
+  ),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (t) => [index("user_ta_status_idx").on(t.taStatus, t.createdAt)]);
@@ -489,4 +494,47 @@ export const qaThreads = pgTable(
     index("qa_thread_user_idx").on(t.userId),
     index("qa_thread_promoted_idx").on(t.promotedChunkId),
   ]
+);
+
+export const meritEvents = pgTable(
+  "merit_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    sourceType: text("sourceType").notNull(),
+    sourceId: text("sourceId"),
+    actorId: text("actorId").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    tierBefore: meritTier("tierBefore"),
+    tierAfter: meritTier("tierAfter"),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("merit_event_source_unique")
+      .on(t.sourceType, t.sourceId, t.reason)
+      .where(sql`${t.sourceId} is not null`),
+    index("merit_event_user_idx").on(t.userId, t.createdAt),
+  ]
+);
+
+export const aiQueryLog = pgTable(
+  "ai_query_log",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tier: meritTier("tier").notNull(),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_query_log_user_idx").on(t.userId, t.createdAt)]
 );

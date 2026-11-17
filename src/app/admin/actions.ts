@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { contributions, users } from "@/db/schema";
+import { contributions } from "@/db/schema";
 import { meritForCategory } from "@/lib/contribution-scan";
+import { creditMerit } from "@/lib/merit-server";
 
 export type ReviewResult =
   | { ok: true; decision: "approved" | "rejected"; awarded: number }
@@ -49,14 +50,15 @@ export async function reviewSubmission(
   if (decision === "approved") {
     awarded = claimed.meritPoints > 0 ? claimed.meritPoints : meritForCategory(claimed.category);
 
-    if (awarded > 0) {
-      await db
-        .update(users)
-        .set({
-          meritPoints: sql`${users.meritPoints} + ${awarded}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, claimed.userId));
+    if (awarded > 0 && claimed.userId) {
+      await creditMerit({
+        userId: claimed.userId,
+        reason: `contribution:${claimed.category}`,
+        sourceType: "contribution",
+        sourceId: id,
+        actorId: session.user.id,
+        delta: awarded,
+      });
     }
   }
 

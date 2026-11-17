@@ -6,6 +6,8 @@ import {
   findCourses,
   findFacultyOffice,
 } from "@/lib/rag/db-retriever";
+import { consumeAiQuota } from "@/lib/merit-server";
+import { getViewer } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -66,9 +68,35 @@ export async function GET(request: Request) {
     });
   }
 
+  let quota: { used: number; limit: number } | null = null;
+  const viewer = await getViewer();
+
+  if (viewer) {
+    const usage = await consumeAiQuota(
+      viewer.userId,
+      viewer.effectiveTier,
+      viewer.privileges.aiQuota
+    );
+
+    if (!usage.allowed) {
+      return NextResponse.json(
+        {
+          error: "Daily assistant limit reached",
+          tier: viewer.effectiveTier,
+          used: usage.used,
+          quota: usage.quota,
+        },
+        { status: 429 }
+      );
+    }
+
+    quota = { used: usage.used + 1, limit: usage.quota };
+  }
+
   const fused = await hybridRetrieve(query, 8);
   return NextResponse.json({
     query,
+    quota,
     results: fused
       .filter((entry) => !entry.doc.category.startsWith("db:"))
       .map((entry) => ({
