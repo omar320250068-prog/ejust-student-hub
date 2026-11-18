@@ -15,7 +15,7 @@ const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR)\b\s*\d{0,3}\b/i;
 
 type OfficeRow = Awaited<ReturnType<typeof findFacultyOffice>>[number];
 type CourseRow = Awaited<ReturnType<typeof findCourses>>[number];
-type LiveFieldKey = "name" | "title" | "department" | "location" | "email" | "officeHours" | "status" | "program" | "level" | "credits" | "description";
+type LiveFieldKey = "name" | "title" | "department" | "location" | "email" | "officeHours" | "status" | "program" | "level" | "credits" | "prerequisites" | "description";
 type LiveField = { key: LiveFieldKey; value: string };
 
 interface FusedEntry {
@@ -33,10 +33,7 @@ function officeFields(row: OfficeRow): LiveField[] {
     .map((slot) => `${slot.day} ${slot.start}-${slot.end}`)
     .join(", ");
   const fields: LiveField[] = [
-    { key: "name", value: row.nameAr ? `${row.name} / ${row.nameAr}` : row.name },
-    ...(row.title ? [{ key: "title" as const, value: row.title }] : []),
     { key: "department", value: row.department },
-    { key: "location", value: `${row.building}, ${row.officeNumber}` },
     ...(row.email ? [{ key: "email" as const, value: row.email }] : []),
     { key: "officeHours", value: hours || row.officeHoursNote || "—" },
     { key: "status", value: row.isInOffice ? "yes" : "no" },
@@ -46,13 +43,13 @@ function officeFields(row: OfficeRow): LiveField[] {
 }
 
 function courseFields(row: CourseRow): LiveField[] {
+  // The curriculum ingest stores prerequisites inside `description`; surface
+  // just that detail instead of repeating the whole generated paragraph.
+  const prerequisites = row.description?.match(/Prerequisites:\s*([^.]+)/i)?.[1]?.trim();
   const fields: LiveField[] = [
-    ...(row.name ? [{ key: "name" as const, value: row.name }] : []),
-    ...(row.nameAr ? [{ key: "name" as const, value: row.nameAr }] : []),
     { key: "program", value: row.program },
-    ...(row.level !== null ? [{ key: "level" as const, value: String(row.level) }] : []),
     ...(row.creditHours !== null ? [{ key: "credits" as const, value: String(row.creditHours) }] : []),
-    ...(row.description ? [{ key: "description" as const, value: row.description }] : []),
+    ...(prerequisites ? [{ key: "prerequisites" as const, value: prerequisites }] : []),
   ];
   return fields.filter((field) => field.value.trim().length > 0);
 }
@@ -170,7 +167,9 @@ export async function GET(request: Request) {
       title: row.nameAr ? `${row.name} / ${row.nameAr}` : row.name,
       category: "live-db",
       sourceType: "live-db",
-      snippet: [row.department, `${row.building}, ${row.officeNumber}`].join(" · "),
+      // Name is the card title and location is the subtitle; the body only
+      // adds details that are not already visible.
+      snippet: `${row.building}, ${row.officeNumber}`,
       rrf: 100 - index,
       fields: officeFields(row),
     })),
@@ -196,11 +195,11 @@ export async function GET(request: Request) {
     rrf: Number(entry.score.toFixed(3)),
   }));
 
-  const seen = new Set(live.map((entry) => entry.id));
-  const combined = [
-    ...live,
-    ...ranked.filter((entry) => !seen.has(entry.id)),
-  ];
+  // A direct faculty/course hit answers the question precisely: suppress the
+  // hybrid handbook/FAQ results, which only matched generic words such as
+  // "مكتب" or "office". When intent produced no entity hit (or this was a
+  // general question), keep the full Hybrid RAG ranking as the fallback.
+  const combined = live.length > 0 ? live : ranked;
 
   return NextResponse.json({
     query,

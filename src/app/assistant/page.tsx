@@ -19,7 +19,7 @@ import { useLanguage, type TranslationKey } from "@/lib/i18n";
 
 type LiveFieldKey =
   | "name" | "title" | "department" | "location" | "email" | "officeHours"
-  | "status" | "program" | "level" | "credits" | "description";
+  | "status" | "program" | "level" | "credits" | "prerequisites" | "description";
 
 interface LiveField {
   key: LiveFieldKey;
@@ -49,6 +49,7 @@ const FIELD_KEY: Record<LiveFieldKey, TranslationKey> = {
   program: "assistant.fieldProgram",
   level: "assistant.fieldLevel",
   credits: "assistant.fieldCredits",
+  prerequisites: "assistant.fieldPrerequisites",
   description: "assistant.fieldDescription",
 };
 
