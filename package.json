@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
