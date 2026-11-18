@@ -16,6 +16,7 @@ import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
 import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafeteria";
 import CampusBackground from "@/components/CampusBackground";
 import MeritPanel from "@/components/MeritPanel";
+import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 const KEYS = {
   timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
@@ -43,6 +44,7 @@ export default function TodayPage() {
   const { locale, t } = useLanguage();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
+  const synced = useSyncedCourses();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -110,10 +112,12 @@ export default function TodayPage() {
           <div className="relative mt-8 grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
             <Metric label={t("dashboard.classes")} value={model ? String(model.classes.length) : "—"} />
             <Metric label={t("dashboard.nextExam")} value={model?.nextExam ? `${model.nextExam.days}d` : "—"} />
-            <Metric label={t("dashboard.gpa")} value={model?.gpa?.currentGpa ? formatGpa(model.gpa.currentGpa) : "—"} />
+            <Metric label={t("dashboard.gpa")} value={synced.courses.length > 0 ? formatGpa(synced.summary.cgpa) : model?.gpa?.currentGpa ? formatGpa(model.gpa.currentGpa) : "—"} />
             <Metric label={t("dashboard.food")} value={model?.budget !== null && model?.budget !== undefined ? formatEgp(model.trayTotal) : "—"} />
           </div>
         </motion.section>
+
+        <SisSyncGuide />
 
         <MeritPanel className="mt-6" />
 

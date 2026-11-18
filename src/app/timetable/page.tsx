@@ -13,6 +13,7 @@ import {
 } from "@/lib/timetable";
 import { useLanguage } from "@/lib/i18n";
 import PrintButton from "@/components/PrintButton";
+import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 type Faculty = "CSIT" | "Engineering" | "Business";
 type AcademicYear = 1 | 2 | 3 | 4;
@@ -88,6 +89,8 @@ export default function TimetablePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
+  const synced = useSyncedCourses();
+  const [onlySynced, setOnlySynced] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -129,9 +132,22 @@ export default function TimetablePage() {
     localStorage.setItem("ejust-timetable-v1", JSON.stringify(blocks));
   }, [blocks, profile, ready]);
 
-  const conflicts = useMemo(() => findConflicts(blocks), [blocks]);
+  const syncedCodes = useMemo(
+    () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
+    [synced.courses]
+  );
+  const showingSynced = onlySynced && syncedCodes.size > 0;
+  const visibleBlocks = useMemo(
+    () =>
+      showingSynced
+        ? blocks.filter((block) => syncedCodes.has(block.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase()))
+        : blocks,
+    [blocks, showingSynced, syncedCodes]
+  );
+
+  const conflicts = useMemo(() => findConflicts(visibleBlocks), [visibleBlocks]);
   const conflictIds = useMemo(() => new Set(conflicts.flatMap((conflict) => [conflict.a.id, conflict.b.id])), [conflicts]);
-  const customCount = blocks.filter((block) => block.type === "Custom").length;
+  const customCount = visibleBlocks.filter((block) => block.type === "Custom").length;
   const gridHeight = ((GRID_END - GRID_START) / 60) * HOUR_PX;
 
   function changeProfile<K extends keyof Profile>(key: K, value: Profile[K]) {
@@ -185,6 +201,7 @@ export default function TimetablePage() {
   return (
     <main className="min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <SisSyncGuide />
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">{t("timetable.fall")}</p>
@@ -193,7 +210,7 @@ export default function TimetablePage() {
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
             <PrintButton />
-            <button type="button" onClick={() => downloadIcs(blocks)} disabled={!blocks.length} className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"><Download size={15} />{t("timetable.export")}</button>
+            <button type="button" onClick={() => downloadIcs(visibleBlocks)} disabled={!visibleBlocks.length} className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"><Download size={15} />{t("timetable.export")}</button>
             <button type="button" onClick={() => setModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-cyan-100"><Plus size={15} />{t("timetable.addCourse")}</button>
           </div>
         </header>
@@ -212,7 +229,18 @@ export default function TimetablePage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
           <span>{t(facultyKey(profile.faculty))} · {t(`timetable.${["", "firstYear", "secondYear", "thirdYear", "fourthYear"][profile.year]}` as never)} · {profile.group}</span>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {synced.courses.length > 0 && (
+              <label className="flex cursor-pointer items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 font-semibold text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                <input
+                  type="checkbox"
+                  checked={onlySynced}
+                  onChange={(event) => setOnlySynced(event.target.checked)}
+                  className="accent-cyan-600"
+                />
+                {t("sis.mySynced")}
+              </label>
+            )}
             <span>{customCount} {t("timetable.customCourses")}</span>
             <button type="button" onClick={resetSchedule} className="font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-300">{t("timetable.reset")}</button>
           </div>
@@ -224,7 +252,7 @@ export default function TimetablePage() {
           <div className="flex min-w-[820px]">
             <div className="w-14 shrink-0 pt-9">{Array.from({ length: 7 }, (_, index) => <div key={index} className="relative text-right text-[10px] text-slate-400" style={{ height: HOUR_PX }}><span className="absolute -top-2 right-2">{String(9 + index).padStart(2, "0")}:00</span></div>)}</div>
             {WEEKDAYS.map((day) => {
-              const dayBlocks = blocks.filter((block) => block.day === day);
+              const dayBlocks = visibleBlocks.filter((block) => block.day === day);
               return <div key={day} className="min-w-0 flex-1 border-l border-slate-200 dark:border-slate-800">
                 <div className="h-9 text-center text-xs font-bold text-slate-700 dark:text-slate-200">{day}</div>
                 <div className="relative" style={{ height: gridHeight }}>

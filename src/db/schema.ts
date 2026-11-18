@@ -218,6 +218,38 @@ export const courses = pgTable(
   ]
 );
 
+/** Courses a student imported from the SIS, one row per course per semester. */
+export const studentAcademicRecords = pgTable(
+  "student_academic_record",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseCode: text("courseCode").notNull(),
+    courseName: text("courseName").notNull(),
+    creditHours: integer("creditHours").notNull().default(3),
+    grade: text("grade"),
+    semester: text("semester").notNull(),
+    status: text("status", { enum: ["registered", "completed"] })
+      .notNull()
+      .default("registered"),
+    updatedAt: timestamp("updatedAt", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("student_academic_record_user_course_semester_unique").on(
+      t.userId,
+      t.courseCode,
+      t.semester
+    ),
+    index("student_academic_record_user_idx").on(t.userId),
+  ]
+);
+
 export const courseMeetings = pgTable(
   "course_meeting",
   {

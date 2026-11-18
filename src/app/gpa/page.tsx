@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -27,6 +27,7 @@ import {
 import { useUserData } from "@/hooks/useUserData";
 import { useLanguage } from "@/lib/i18n";
 import { StudyShell } from "@/components/ExperienceShells";
+import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 const SEED_COURSES: Course[] = [
   { id: "s1", code: "MATH101", title: "Calculus I", credits: 4, semester: "Y1S1", status: "completed", grade: "A" },
@@ -46,6 +47,11 @@ const SEED_COURSES: Course[] = [
   { id: "s15", code: "IDE201", title: "Engineering Design I", credits: 3, semester: "Y2S2", status: "planned" },
   { id: "s16", code: "MATH202", title: "Linear Algebra", credits: 3, semester: "Y2S2", status: "planned" },
 ];
+
+const GPA_GRADE_MAP: Record<string, LetterGrade> = {
+  "A+": "A+", A: "A", "A-": "A", "B+": "B+", B: "B", "B-": "B",
+  "C+": "C+", C: "C", "C-": "C", "D+": "D+", D: "D", F: "F",
+};
 
 export default function GpaPage() {
   const { t } = useLanguage();
@@ -74,6 +80,29 @@ export default function GpaPage() {
     saveData({ ...saved, degreeCredits: next });
   };
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
+  const synced = useSyncedCourses();
+  const [useSynced, setUseSynced] = useState(false);
+
+  // The local calculator uses a simplified grade scale; map E-JUST grades onto
+  // its valid options and show the authoritative CGPA from the sync result.
+  const syncedCourses = useMemo<Course[]>(
+    () =>
+      synced.courses.map((course) => ({
+        id: `sis-${course.courseCode}-${course.semester}`.replace(/\s+/g, "-"),
+        code: course.courseCode,
+        title: course.courseName || course.courseCode,
+        credits: course.creditHours ?? 3,
+        semester: course.semester || "Unassigned",
+        status: course.status === "completed" ? "completed" : "in-progress",
+        grade:
+          course.status === "completed" && course.grade
+            ? GPA_GRADE_MAP[course.grade.toUpperCase()]
+            : undefined,
+      })),
+    [synced.courses]
+  );
+  const showingSynced = useSynced && syncedCourses.length > 0;
+  const activeCourses = showingSynced ? syncedCourses : courses;
 
   const [form, setForm] = useState({
     code: "",
@@ -86,10 +115,10 @@ export default function GpaPage() {
   });
 
   const stats = useMemo(
-    () => computeStats(courses, targetGpa),
-    [courses, targetGpa]
+    () => computeStats(activeCourses, targetGpa),
+    [activeCourses, targetGpa]
   );
-  const series = useMemo(() => semesterSeries(courses), [courses]);
+  const series = useMemo(() => semesterSeries(activeCourses), [activeCourses]);
   const degreeProgress = Math.min(
     100,
     degreeCredits > 0 ? (stats.completedCredits / degreeCredits) * 100 : 0
@@ -131,11 +160,12 @@ export default function GpaPage() {
 
   const visibleCourses =
     statusFilter === "all"
-      ? courses
-      : courses.filter((c) => c.status === statusFilter);
+      ? activeCourses
+      : activeCourses.filter((c) => c.status === statusFilter);
 
   return (
     <StudyShell icon={<TrendingUp size={19} />} title={t("study.gpa")} description="Simulate target grades, track cumulative performance, and see how your degree is progressing." action={<PrintButton />}>
+      <SisSyncGuide />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="sr-only">GPA Predictor &amp; Degree Tracker</h1>
@@ -200,7 +230,21 @@ export default function GpaPage() {
 
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-gray-900">Courses ({courses.length})</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Courses ({activeCourses.length})</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {synced.courses.length > 0 && (
+              <label className="flex cursor-pointer items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                <input
+                  type="checkbox"
+                  checked={useSynced}
+                  onChange={(e) => setUseSynced(e.target.checked)}
+                  className="accent-cyan-600"
+                />
+                {t("sis.mySynced")}
+                <span className="font-mono">CGPA {synced.summary.cgpa.toFixed(2)}</span>
+              </label>
+            )}
+          </div>
           <div className="flex gap-1">
             {(["all", "completed", "in-progress", "planned"] as const).map((s) => (
               <button
@@ -271,7 +315,8 @@ export default function GpaPage() {
                   <td className="py-2">
                     <button
                       onClick={() => removeCourse(c.id)}
-                      className="rounded p-1 text-gray-300 transition hover:bg-red-50 hover:text-red-600"
+                      disabled={showingSynced}
+                      className="rounded p-1 text-gray-300 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
                       aria-label={`Remove ${c.code}`}
                     >
                       <Trash2 size={14} />
@@ -290,6 +335,7 @@ export default function GpaPage() {
           </table>
         </div>
 
+        {!showingSynced && (
         <form onSubmit={addCourse} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
           <Field label="Code">
             <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="EECE210" className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400" />
@@ -334,6 +380,7 @@ export default function GpaPage() {
             Add
           </button>
         </form>
+        )}
       </section>
     </StudyShell>
   );

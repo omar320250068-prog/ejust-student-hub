@@ -22,6 +22,7 @@ import {
 import { downloadEventIcs, examEvent } from "@/lib/ics";
 import { useLanguage } from "@/lib/i18n";
 import { StudyShell } from "@/components/ExperienceShells";
+import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 const STORAGE_KEY = "ejust-exams-v1";
 
@@ -49,6 +50,12 @@ export default function ExamsPage() {
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [seatCode, setSeatCode] = useState("");
   const [seatResult, setSeatResult] = useState<string | null>(null);
+  const synced = useSyncedCourses();
+  const [highlightSynced, setHighlightSynced] = useState(true);
+  const syncedCodes = useMemo(
+    () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
+    [synced.courses]
+  );
   const [form, setForm] = useState({
     courseCode: "",
     title: "",
@@ -144,6 +151,7 @@ export default function ExamsPage() {
 
   return (
     <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadEventIcs(upcoming.map(({ exam }) => examEvent(exam)), "ejust-exams.ics", "EJUST Exams")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.export")}</button>}>
+      <SisSyncGuide />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="sr-only">Exam Countdown &amp; Study Planner</h1>
@@ -153,6 +161,17 @@ export default function ExamsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {synced.courses.length > 0 && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+              <input
+                type="checkbox"
+                checked={highlightSynced}
+                onChange={(event) => setHighlightSynced(event.target.checked)}
+                className="accent-cyan-600"
+              />
+              {t("sis.mySynced")}
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm text-gray-600">
             Daily study hours
             <input
@@ -174,16 +193,25 @@ export default function ExamsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.seat")}</p><div className="mt-3 flex gap-2"><input value={seatCode} onChange={(event) => setSeatCode(event.target.value)} placeholder="Student ID" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" /><button onClick={() => setSeatResult(seatCode ? "Hall A2 · Row 4 · Seat 18" : "Enter your student ID")} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white dark:bg-cyan-300 dark:text-slate-950">{t("study.lookup")}</button></div>{seatResult && <p className="mt-2 text-xs text-cyan-700 dark:text-cyan-300">{seatResult}</p>}</div>
       </section>
       <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {upcoming.map(({ exam, days }) => (
+        {upcoming.map(({ exam, days }) => {
+          const isSynced = syncedCodes.has(exam.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase());
+          const emphasized = highlightSynced && isSynced;
+          const dimmed = highlightSynced && syncedCodes.size > 0 && !isSynced;
+          return (
           <article
             key={exam.id}
             className={`rounded-xl border bg-white p-3 ${
-              days <= 3 ? "border-red-200" : days <= 7 ? "border-amber-200" : "border-gray-200"
-            }`}
+              emphasized
+                ? "border-cyan-300 ring-2 ring-cyan-400 dark:bg-slate-900"
+                : days <= 3 ? "border-red-200" : days <= 7 ? "border-amber-200" : "border-gray-200"
+            } ${dimmed ? "opacity-60" : ""}`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-mono text-[11px] font-bold text-gray-400">{exam.courseCode}</p>
+                <p className="font-mono text-[11px] font-bold text-gray-400">
+                  {exam.courseCode}
+                  {emphasized && <span className="ms-2 rounded-full bg-cyan-100 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("sis.mySynced")}</span>}
+                </p>
                 <h2 className="truncate text-sm font-semibold text-gray-900">{exam.title}</h2>
               </div>
               <span
@@ -222,7 +250,8 @@ export default function ExamsPage() {
               Remove
             </button>
           </article>
-        ))}
+          );
+        })}
         {upcoming.length === 0 && (
           <p className="col-span-full rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
             No upcoming exams. Add one below to start planning.

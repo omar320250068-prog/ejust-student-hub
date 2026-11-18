@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E-JUST Hub SIS Sync</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+      body { width: 340px; margin: 0; padding: 14px; color: #0f172a; background: #f8fafc; }
+      h1 { margin: 0 0 4px; font-size: 15px; }
+      p { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.45; }
+      label { display: block; margin: 10px 0 4px; font-size: 11px; font-weight: 700; }
+      input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font: inherit; font-size: 12px; background: #fff; }
+      textarea { min-height: 96px; resize: vertical; }
+      .row { display: flex; gap: 8px; }
+      button { flex: 1; border: 0; border-radius: 8px; padding: 9px 8px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; background: #e2e8f0; color: #0f172a; }
+      button.primary { background: #0891b2; color: #fff; }
+      button:disabled { opacity: .55; cursor: not-allowed; }
+      .actions { display: flex; gap: 8px; margin-top: 10px; }
+      #preview { margin-top: 10px; max-height: 132px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+      #preview div { padding: 5px 8px; font-size: 11px; border-bottom: 1px solid #f1f5f9; }
+      #status { margin-top: 10px; font-size: 11px; min-height: 16px; color: #0f766e; }
+      #status.error { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>E-JUST Hub SIS Sync</h1>
+    <p>On the SIS Registered Courses or Academic Transcript page, click <strong>Detect courses</strong>. Nothing is sent until you click Sync.</p>
+
+    <label for="token">Sync token (copy it from the hub guide)</label>
+    <input id="token" type="password" placeholder="Paste your sync token" autocomplete="off" />
+
+    <label for="raw">Copied SIS table text</label>
+    <textarea id="raw" placeholder="Open SIS → Ctrl+A → Ctrl+C, or let Detect courses fill this in."></textarea>
+
+    <div class="actions">
+      <button id="detect" type="button">Detect courses</button>
+      <button id="sync" class="primary" type="button">Sync to Hub</button>
+    </div>
+
+    <div id="preview"></div>
+    <div id="status" role="status"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
