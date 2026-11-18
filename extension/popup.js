@@ -1,8 +1,9 @@
 /* E-JUST Hub SIS Sync — lightweight Manifest V3 popup. */
 (function () {
-  const API = "https://ejust-student-hub.vercel.app/api/student/sync";
+  const API = "https://ejust-student-hub.vercel.app/api/sis/sync";
   const SIS_HOST = "sis.ejust.edu.eg";
 
+  const autoSyncInput = document.getElementById("autoSync");
   const tokenInput = document.getElementById("token");
   const rawInput = document.getElementById("raw");
   const detectButton = document.getElementById("detect");
@@ -138,6 +139,18 @@
       renderPreview(data.courses || [], data.metadata);
       setStatus("Synced! CGPA " + Number(data.cgpa || 0).toFixed(2) + " · " + (data.completedCredits || 0) + " credits.");
       await chrome.storage.local.set({ lastSyncAt: new Date().toISOString() });
+      // Mark the currently visible table as synced so auto-sync won't repeat it.
+      var tab = await currentTab();
+      if (tab && tab.url && tab.url.indexOf(SIS_HOST) !== -1) {
+        try {
+          var hashed = await chrome.tabs.sendMessage(tab.id, { type: "EJUST_HASH_SIS" });
+          if (hashed && hashed.ok && hashed.hash) {
+            await chrome.storage.local.set({ lastSyncedHash: hashed.hash });
+          }
+        } catch (error) {
+          // Hash bookkeeping is best effort; the server data is already saved.
+        }
+      }
     } catch (error) {
       setStatus(error.message, true);
     } finally {
@@ -147,6 +160,9 @@
 
   detectButton.addEventListener("click", detect);
   syncButton.addEventListener("click", sync);
+  autoSyncInput.addEventListener("change", function () {
+    chrome.storage.local.set({ autoSync: autoSyncInput.checked });
+  });
   tokenInput.addEventListener("change", function () {
     chrome.storage.local.set({ syncToken: token() });
   });
@@ -154,7 +170,9 @@
     chrome.storage.local.set({ lastRawText: rawInput.value });
   });
 
-  chrome.storage.local.get(["syncToken", "lastRawText"], function (data) {
+  chrome.storage.local.get(["autoSync", "syncToken", "lastRawText"], function (data) {
+    autoSyncInput.checked = data.autoSync !== false; // default on, including upgrades
+    if (typeof data.autoSync !== "boolean") chrome.storage.local.set({ autoSync: true });
     if (data.syncToken) tokenInput.value = data.syncToken;
     if (data.lastRawText) rawInput.value = data.lastRawText;
     renderPreview([]);

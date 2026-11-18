@@ -22,8 +22,15 @@ import type { SyncedCourse, SyncSummary } from "@/lib/sis-sync";
 
 const STORAGE_KEY = "ejust:sis-sync";
 const SYNC_EVENT = "ejust:sis-synced";
+const SYNC_TOKEN_MESSAGE = "EJUST_HUB_SYNC_TOKEN";
 const API_URL = "/api/student/sync";
 const EXTENSION_ZIP = "/downloads/ejust-hub-sync-extension.zip";
+
+/** Pair the extension without a copy/paste step. Target origin is always the hub itself. */
+function broadcastSyncToken(token: string | undefined | null) {
+  if (!token || typeof window === "undefined") return;
+  window.postMessage({ type: SYNC_TOKEN_MESSAGE, token }, window.location.origin);
+}
 
 export interface SisSyncState {
   courses: SyncedCourse[];
@@ -66,12 +73,19 @@ export function useSyncedCourses(): SisSyncState {
     };
   }, []);
 
+  // A restored or newly issued token is broadcast on every hub page that uses
+  // this hook, so opening the hub is enough to pair the extension.
+  useEffect(() => {
+    broadcastSyncToken(state.syncToken);
+  }, [state.syncToken]);
+
   return state;
 }
 
 function persist(state: SisSyncState) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: state }));
+  broadcastSyncToken(state.syncToken);
 }
 
 function readStoredSync(): SisSyncState {

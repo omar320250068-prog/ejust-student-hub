@@ -1,17 +1,29 @@
 {
   "manifest_version": 3,
   "name": "E-JUST Hub SIS Sync",
-  "version": "1.0.0",
-  "description": "Send copied course and grade tables from the E-JUST SIS to the E-JUST Student Hub. Never reads passwords.",
+  "version": "1.1.0",
+  "description": "Automatically sync course and grade tables from the E-JUST SIS to the E-JUST Student Hub. Never reads passwords.",
   "permissions": ["activeTab", "storage", "clipboardRead"],
   "host_permissions": [
     "https://sis.ejust.edu.eg/*",
-    "https://ejust-student-hub.vercel.app/*"
+    "https://ejust-student-hub.vercel.app/*",
+    "http://localhost:3000/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://sis.ejust.edu.eg/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ejust-student-hub.vercel.app/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["hub.js"],
       "run_at": "document_idle"
     }
   ],

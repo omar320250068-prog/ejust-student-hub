@@ -12,6 +12,10 @@
       label { display: block; margin: 10px 0 4px; font-size: 11px; font-weight: 700; }
       input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font: inherit; font-size: 12px; background: #fff; }
       textarea { min-height: 96px; resize: vertical; }
+      .toggle { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+      .toggle input { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; accent-color: #0891b2; }
+      .toggle span { font-size: 11px; line-height: 1.4; }
+      .toggle small { display: block; color: #64748b; font-weight: 400; }
       .row { display: flex; gap: 8px; }
       button { flex: 1; border: 0; border-radius: 8px; padding: 9px 8px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; background: #e2e8f0; color: #0f172a; }
       button.primary { background: #0891b2; color: #fff; }
@@ -27,12 +31,17 @@
   </head>
   <body>
     <h1>E-JUST Hub SIS Sync</h1>
-    <p>On the SIS Registered Courses or Academic Transcript page, click <strong>Detect courses</strong>. Nothing is sent until you click Sync.</p>
+    <p>Sign in to the hub once and the sync token pairs automatically. Changed SIS tables then sync in the background.</p>
 
-    <label for="token">Sync token (copy it from the hub guide)</label>
-    <input id="token" type="password" placeholder="Paste your sync token" autocomplete="off" />
+    <label class="toggle">
+      <input id="autoSync" type="checkbox" checked />
+      <span>Automatic sync<small>Sync changed courses/grades as you browse the SIS.</small></span>
+    </label>
 
-    <label for="raw">Copied SIS table text</label>
+    <label for="token">Sync token (pairs automatically; paste only as a fallback)</label>
+    <input id="token" type="password" placeholder="Auto-filled when you sign in to the hub" autocomplete="off" />
+
+    <label for="raw">Copied SIS table text (manual fallback)</label>
     <textarea id="raw" placeholder="Open SIS → Ctrl+A → Ctrl+C, or let Detect courses fill this in."></textarea>
 
     <div class="actions">
