@@ -10,6 +10,7 @@ import {
   GraduationCap,
   Loader2,
   MapPin,
+  Megaphone,
   RefreshCw,
   Send,
   Sparkles,
@@ -19,7 +20,8 @@ import { useLanguage, type TranslationKey } from "@/lib/i18n";
 
 type LiveFieldKey =
   | "name" | "title" | "department" | "location" | "email" | "officeHours"
-  | "status" | "program" | "level" | "credits" | "prerequisites" | "description";
+  | "status" | "program" | "level" | "credits" | "prerequisites" | "description"
+  | "date" | "type" | "category" | "expires";
 
 interface LiveField {
   key: LiveFieldKey;
@@ -51,6 +53,10 @@ const FIELD_KEY: Record<LiveFieldKey, TranslationKey> = {
   credits: "assistant.fieldCredits",
   prerequisites: "assistant.fieldPrerequisites",
   description: "assistant.fieldDescription",
+  date: "assistant.fieldDate",
+  type: "assistant.fieldType",
+  category: "assistant.fieldCategory",
+  expires: "assistant.fieldExpires",
 };
 
 interface LookupRow {
@@ -122,6 +128,16 @@ const SOURCE_BADGE: Record<string, { key: TranslationKey; tone: string; icon: ty
     key: "assistant.sourceLive",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
     icon: Database,
+  },
+  exam: {
+    key: "assistant.sourceExam",
+    tone: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
+    icon: CalendarDays,
+  },
+  announcement: {
+    key: "assistant.sourceAnnouncement",
+    tone: "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200",
+    icon: Megaphone,
   },
 };
 

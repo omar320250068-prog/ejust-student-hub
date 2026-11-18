@@ -20,31 +20,36 @@ import {
   type ExamType,
 } from "@/lib/exams";
 import { downloadEventIcs, examEvent } from "@/lib/ics";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, type TranslationKey } from "@/lib/i18n";
+import { normalizeCode, type LiveExam } from "@/lib/hub-feed";
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 const STORAGE_KEY = "ejust-exams-v1";
 
-function buildSeed(now: Date): Exam[] {
-  const at = (days: number, hour: number) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() + days);
-    d.setHours(hour, 0, 0, 0);
-    return d.toISOString();
-  };
-  return [
-    { id: "x1", courseCode: "MATH201", title: "Differential Equations", type: "Quiz", date: at(4, 10), weight: 15, difficulty: 3 },
-    { id: "x2", courseCode: "CSE201", title: "Data Structures", type: "Midterm", date: at(8, 9), weight: 30, difficulty: 4 },
-    { id: "x3", courseCode: "EECE201", title: "Circuit Analysis", type: "Midterm", date: at(13, 9), weight: 30, difficulty: 3 },
-    { id: "x4", courseCode: "STAT201", title: "Probability & Statistics", type: "Final", date: at(21, 11), weight: 40, difficulty: 4 },
-    { id: "x5", courseCode: "EECE201", title: "Circuits Lab Report", type: "Project", date: at(18, 23), weight: 10, difficulty: 2 },
-  ];
+const EXAM_LABEL: Record<ExamType, TranslationKey> = {
+  Quiz: "study.examQuiz",
+  Midterm: "study.examMidterm",
+  Final: "study.examFinal",
+  Project: "study.examProject",
+};
+
+function daysLabel(days: number, t: (key: TranslationKey) => string): string {
+  if (days === 0) return t("study.today");
+  if (days === 1) return t("study.oneDay");
+  return t("study.daysLeft").replace("{n}", String(days));
+}
+
+function examKey(exam: Exam): string {
+  return `${normalizeCode(exam.courseCode)}|${exam.type}|${new Date(exam.date).toDateString()}`;
 }
 
 export default function ExamsPage() {
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
   const [exams, setExams] = useState<Exam[]>([]);
+  const [hubExams, setHubExams] = useState<LiveExam[]>([]);
+  const [hubAvailable, setHubAvailable] = useState(true);
+  const [hubLoading, setHubLoading] = useState(true);
   const [dailyHours, setDailyHours] = useState(3);
   const [mounted, setMounted] = useState(false);
   const [nowMs, setNowMs] = useState<number | null>(null);
@@ -78,12 +83,32 @@ export default function ExamsPage() {
           return;
         }
       } catch {
-        // corrupt storage — fall through to seed
+        // corrupt storage — keep the local planner empty
       }
-      setExams(buildSeed(new Date()));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Live exams are the source of truth; local exams are the student's own additions.
+  useEffect(() => {
+    if (!mounted) return;
+    const controller = new AbortController();
+    const codes = [...syncedCodes].join(",");
+    fetch(`/api/exams?codes=${encodeURIComponent(codes)}`, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((payload: { exams?: LiveExam[]; available?: boolean }) => {
+        if (controller.signal.aborted) return;
+        setHubExams(Array.isArray(payload.exams) ? payload.exams : []);
+        setHubAvailable(payload.available !== false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setHubAvailable(false);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHubLoading(false);
+      });
+    return () => controller.abort();
+  }, [mounted, syncedCodes]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -99,25 +124,33 @@ export default function ExamsPage() {
     }
   }, [exams, dailyHours, mounted]);
 
+  const allExams = useMemo(() => {
+    const localKeys = new Set(hubExams.map(examKey));
+    return [
+      ...hubExams,
+      ...exams.filter((exam) => !localKeys.has(examKey(exam))),
+    ];
+  }, [exams, hubExams]);
+
   const allocations = useMemo(
-    () => (nowMs === null ? [] : allocateStudy(exams, dailyHours, new Date(nowMs))),
-    [exams, dailyHours, nowMs]
+    () => (nowMs === null ? [] : allocateStudy(allExams, dailyHours, new Date(nowMs))),
+    [allExams, dailyHours, nowMs]
   );
 
   const upcoming = useMemo(() => {
     if (nowMs === null) return [];
     const now = new Date(nowMs);
-    return [...exams]
+    return [...allExams]
       .map((exam) => ({ exam, days: daysLeft(exam.date, now) }))
       .filter((x) => x.days >= 0)
       .sort((a, b) => a.days - b.days);
-  }, [exams, nowMs]);
+  }, [allExams, nowMs]);
 
   const past = useMemo(() => {
     if (nowMs === null) return 0;
     const now = new Date(nowMs);
-    return exams.filter((e) => daysLeft(e.date, now) < 0).length;
-  }, [exams, nowMs]);
+    return allExams.filter((e) => daysLeft(e.date, now) < 0).length;
+  }, [allExams, nowMs]);
   const chartData = allocations.map((a) => ({
     name: a.exam.courseCode,
     hours: a.totalHours,
@@ -173,7 +206,7 @@ export default function ExamsPage() {
             </label>
           )}
           <label className="flex items-center gap-2 text-sm text-gray-600">
-            Daily study hours
+            {t("study.hours")}
             <input
               type="number"
               min={1}
@@ -194,7 +227,13 @@ export default function ExamsPage() {
       </section>
       <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {upcoming.map(({ exam, days }) => {
-          const isSynced = syncedCodes.has(exam.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase());
+          const hub = "source" in exam ? (exam as LiveExam) : null;
+          const subtitle = hub
+            ? locale === "ar" && hub.courseNameAr
+              ? hub.courseNameAr
+              : hub.courseName
+            : null;
+          const isSynced = syncedCodes.has(normalizeCode(exam.courseCode));
           const emphasized = highlightSynced && isSynced;
           const dimmed = highlightSynced && syncedCodes.size > 0 && !isSynced;
           return (
@@ -213,6 +252,7 @@ export default function ExamsPage() {
                   {emphasized && <span className="ms-2 rounded-full bg-cyan-100 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("sis.mySynced")}</span>}
                 </p>
                 <h2 className="truncate text-sm font-semibold text-gray-900">{exam.title}</h2>
+                {subtitle && <p className="truncate text-[11px] text-gray-500">{subtitle}</p>}
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
@@ -223,38 +263,54 @@ export default function ExamsPage() {
                       : "bg-blue-50 text-blue-700"
                 }`}
               >
-                {days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`}
+                {daysLabel(days, t)}
               </span>
             </div>
             <div className="mt-2 flex flex-wrap gap-1 text-[11px]">
               <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
-                {exam.type}
+                {t(EXAM_LABEL[exam.type])}
               </span>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
-                {exam.weight}% of grade
+                {t("study.ofGrade").replace("{n}", String(exam.weight))}
               </span>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
                 {"●".repeat(exam.difficulty)}
                 {"○".repeat(4 - exam.difficulty)}
               </span>
+              {hub && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  {t("study.hubExam")}
+                </span>
+              )}
             </div>
             <p className="mt-2 flex items-center gap-1 text-xs text-gray-500">
               <CalendarDays size={12} />
               {formatExamDate(exam.date)}
+              {hub && hub.location !== "TBA" ? ` · ${hub.location}` : ""}
             </p>
-            <button
-              onClick={() => setExams((prev) => prev.filter((e) => e.id !== exam.id))}
-              className="mt-2 flex items-center gap-1 text-[11px] text-gray-400 hover:text-red-600"
-            >
-              <Trash2 size={11} />
-              Remove
-            </button>
+            {!hub && (
+              <button
+                onClick={() => setExams((prev) => prev.filter((e) => e.id !== exam.id))}
+                className="mt-2 flex items-center gap-1 text-[11px] text-gray-400 hover:text-red-600"
+              >
+                <Trash2 size={11} />
+                {t("study.remove")}
+              </button>
+            )}
           </article>
           );
         })}
-        {upcoming.length === 0 && (
+        {hubLoading && (
+          <p className="col-span-full text-center text-xs text-gray-400">…</p>
+        )}
+        {!hubAvailable && (
+          <p className="col-span-full rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            {t("study.hubUnavailable")}
+          </p>
+        )}
+        {upcoming.length === 0 && !hubLoading && (
           <p className="col-span-full rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
-            No upcoming exams. Add one below to start planning.
+            {t("study.noUpcoming")}
           </p>
         )}
         {past > 0 && (
@@ -335,7 +391,7 @@ export default function ExamsPage() {
       </section>
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Add exam</h2>
+        <h2 className="text-sm font-semibold text-gray-900">{t("study.addExam")}</h2>
         <form onSubmit={addExam} className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
           <Field label="Code">
             <input value={form.courseCode} onChange={(e) => setForm({ ...form, courseCode: e.target.value })} placeholder="MATH201" className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400" />

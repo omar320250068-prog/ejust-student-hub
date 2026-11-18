@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { hybridRetrieve, knowledgeBase } from "@/lib/rag/knowledge";
+import { examRowToUi, filterActiveNotices, normalizeCode } from "@/lib/hub-feed";
 import {
   countDbSources,
   facultyQueryTokens,
+  findActiveAnnouncements,
   findCourseMeetings,
   findCourses,
   findFacultyOffice,
+  findUpcomingExams,
   type CourseMeetingQuery,
 } from "@/lib/rag/db-retriever";
 import { consumeAiQuota } from "@/lib/merit-server";
@@ -15,6 +18,8 @@ const OFFICE_INTENT = /office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|مك�
 const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR|ECE|CSE|ACM)\b\s*\d{0,3}\b/i;
 const COURSE_CODE = /\b([A-Z]{2,5})\s*-?\s*(\d{3})\b/i;
 const SCHEDULE_INTENT = /schedule|timetable|\bclass(?:es)?\b|\blec(?:ture)?s?\b|\blab\b|\btutorial\b|\bwhen\b|\bday\b|جدول|محاضرة|معمل|شعبة|時間割|授業/i;
+const EXAM_INTENT = /\bexams?\b|\bexamination\b|\bmidterms?\b|\bquizzes\b|\bquiz\b|\bfinal exam\b|امتحان|اختبار|نصف العام|試験|テスト/i;
+const ANNOUNCEMENT_INTENT = /\bannouncements?\b|\bnotices?\b|\bnews\b|\bupdates?\b|إعلان|إعلانات|تنبيه|أخبار|お知らせ|告知/i;
 
 type ScheduleDay = NonNullable<CourseMeetingQuery["day"]>;
 
@@ -38,7 +43,7 @@ function scheduleQuery(query: string): { courseCode?: string; day?: ScheduleDay 
 
 type OfficeRow = Awaited<ReturnType<typeof findFacultyOffice>>[number];
 type CourseRow = Awaited<ReturnType<typeof findCourses>>[number];
-type LiveFieldKey = "name" | "title" | "department" | "location" | "email" | "officeHours" | "status" | "program" | "level" | "credits" | "prerequisites" | "description";
+type LiveFieldKey = "name" | "title" | "department" | "location" | "email" | "officeHours" | "status" | "program" | "level" | "credits" | "prerequisites" | "description" | "date" | "type" | "category" | "expires";
 type LiveField = { key: LiveFieldKey; value: string };
 
 interface FusedEntry {
@@ -126,6 +131,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ lookup, courses: rows });
     }
 
+    if (lookup === "exams") {
+      const rows = await findUpcomingExams(limit);
+      return NextResponse.json({ lookup, exams: rows.map(examRowToUi) });
+    }
+
+    if (lookup === "notices") {
+      const rows = await findActiveAnnouncements({ limit });
+      return NextResponse.json({ lookup, notices: filterActiveNotices(rows) });
+    }
+
     return NextResponse.json({ error: "unknown lookup" }, { status: 400 });
   }
 
@@ -174,8 +189,10 @@ export async function GET(request: Request) {
   const officeName = OFFICE_INTENT.test(query) ? facultyQueryTokens(query).join(" ") : "";
   const courseCode = query.match(COURSE_INTENT)?.[0] ?? "";
   const schedule = scheduleQuery(query);
+  const wantsExams = EXAM_INTENT.test(query);
+  const wantsNotices = ANNOUNCEMENT_INTENT.test(query);
 
-  const [fused, officeHits, courseHits, scheduleMeetings] = await Promise.all([
+  const [fused, officeHits, courseHits, scheduleMeetings, examRows, noticeRows] = await Promise.all([
     hybridRetrieve(query, 8),
     officeName
       ? findFacultyOffice({ name: officeName, limit: 5 }).catch(() => [])
@@ -191,7 +208,22 @@ export async function GET(request: Request) {
           limit: 12,
         }).catch(() => [])
       : Promise.resolve([]),
+    wantsExams
+      ? findUpcomingExams(20).catch(() => [])
+      : Promise.resolve([]),
+    wantsNotices
+      ? findActiveAnnouncements({ limit: 20 }).catch(() => [])
+      : Promise.resolve([]),
   ]);
+
+  const examHits = courseCode
+    ? examRows.filter((row) => normalizeCode(row.courseCode) === normalizeCode(courseCode))
+    : examRows;
+  const noticeHits = courseCode
+    ? noticeRows.filter(
+        (row) => !row.courseCode || normalizeCode(row.courseCode) === normalizeCode(courseCode)
+      )
+    : noticeRows;
 
   const live: FusedEntry[] = [
     ...officeHits.map((row, index) => ({
@@ -213,6 +245,63 @@ export async function GET(request: Request) {
       snippet: row.name ?? row.nameAr ?? "",
       rrf: 90 - index,
       fields: courseFields(row),
+    })),
+    ...examHits.map((row, index) => {
+      const exam = examRowToUi(row);
+      return {
+        id: `exam:${row.id}`,
+        title: `${exam.courseCode} — ${row.courseName ?? exam.title}`,
+        category: "live-db",
+        sourceType: "exam",
+        snippet: [exam.location !== "TBA" ? exam.location : "", exam.notes ?? ""]
+          .filter(Boolean)
+          .join(" · "),
+        rrf: 80 - index,
+        fields: [
+          {
+            key: "date" as const,
+            value: new Date(exam.date).toLocaleString("en-GB", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+          { key: "type" as const, value: exam.type },
+          { key: "location" as const, value: exam.location },
+        ],
+      };
+    }),
+    ...noticeHits.map((row, index) => ({
+      id: `notice:${row.id}`,
+      title: row.title,
+      category: "live-db",
+      sourceType: "announcement",
+      snippet: row.body,
+      rrf: 70 - index,
+      fields: [
+        { key: "category" as const, value: row.category.replace(/_/g, " ") },
+        ...(row.courseCode
+          ? [
+              {
+                key: "title" as const,
+                value: `${row.courseCode}${row.courseName ? ` · ${row.courseName}` : ""}`,
+              },
+            ]
+          : []),
+        ...(row.expiresAt
+          ? [
+              {
+                key: "expires" as const,
+                value: new Date(row.expiresAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                }),
+              },
+            ]
+          : []),
+      ],
     })),
   ];
 

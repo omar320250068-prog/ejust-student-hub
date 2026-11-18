@@ -5,10 +5,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   AlarmClock, ArrowUpRight, Award, BookOpen, CalendarDays, Coffee,
-  GraduationCap, LayoutGrid, Map, MessageCircleQuestion, ShieldCheck, Sparkles, Sun,
+  GraduationCap, LayoutGrid, Map, Megaphone, MessageCircleQuestion, ShieldCheck, Sparkles, Sun,
   Wallet,
 } from "lucide-react";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, type TranslationKey } from "@/lib/i18n";
+import type { HubNoticeCategory, LiveNotice } from "@/lib/hub-feed";
 import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
 import { computeStats, formatGpa, type Course } from "@/lib/gpa";
 import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
@@ -21,6 +22,13 @@ import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 const KEYS = {
   timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
   cafeteria: "ejust-cafeteria-v1", savedScholarships: "ejust-scholarships-saved-v1",
+};
+
+const CATEGORY_LABEL: Record<HubNoticeCategory, TranslationKey> = {
+  ACADEMIC: "dashboard.categoryAcademic",
+  EXAM: "dashboard.categoryExam",
+  SCHEDULE_CHANGE: "dashboard.categoryScheduleChange",
+  EVENT: "dashboard.categoryEvent",
 };
 
 interface GpaData { courses: Course[]; targetGpa: number; degreeCredits: number }
@@ -44,6 +52,9 @@ export default function TodayPage() {
   const { locale, t } = useLanguage();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
+  const [notices, setNotices] = useState<LiveNotice[]>([]);
+  const [noticesAvailable, setNoticesAvailable] = useState(true);
+  const [noticesLoading, setNoticesLoading] = useState(true);
   const synced = useSyncedCourses();
 
   useEffect(() => {
@@ -59,6 +70,36 @@ export default function TodayPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const faculty = useMemo(
+    () => snapshot?.timetable.find((block) => block.faculty)?.faculty ?? "CSIT",
+    [snapshot]
+  );
+
+  // Active notices are scoped to the viewer's faculty and synced courses by the API.
+  useEffect(() => {
+    if (!snapshot) return;
+    const controller = new AbortController();
+    const codes = [...new Set(
+      synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())
+    )].join(",");
+    fetch(`/api/notices?faculty=${encodeURIComponent(faculty)}&codes=${encodeURIComponent(codes)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => response.json())
+      .then((payload: { notices?: LiveNotice[]; available?: boolean }) => {
+        if (controller.signal.aborted) return;
+        setNotices(Array.isArray(payload.notices) ? payload.notices : []);
+        setNoticesAvailable(payload.available !== false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setNoticesAvailable(false);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setNoticesLoading(false);
+      });
+    return () => controller.abort();
+  }, [snapshot, faculty, synced.courses]);
 
   const model = useMemo(() => {
     if (nowMs === null || snapshot === null) return null;
@@ -120,6 +161,62 @@ export default function TodayPage() {
         <SisSyncGuide />
 
         <MeritPanel className="mt-6" />
+
+        <section className="mt-6" aria-labelledby="hub-notices-title">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 id="hub-notices-title" className="flex items-center gap-2 text-xl font-semibold text-white">
+                <Megaphone size={18} className="text-cyan-300" />
+                {t("dashboard.notices")}
+              </h2>
+              <p className="mt-1 text-sm text-slate-300">{t("dashboard.date")}</p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {notices.map((notice) => (
+              <article key={notice.id} className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-white">{notice.title}</h3>
+                  <span className="shrink-0 rounded-full border border-cyan-200/40 bg-cyan-300/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-100">
+                    {t(CATEGORY_LABEL[notice.category])}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-300">{notice.body}</p>
+                <p className="mt-3 text-[11px] text-cyan-200">
+                  {notice.courseCode
+                    ? t("dashboard.forFaculty")
+                        .replace("{faculty}", notice.targetFaculty || faculty)
+                        .replace(
+                          "{course}",
+                          `${notice.courseCode}${notice.courseName ? ` · ${notice.courseName}` : ""}`
+                        )
+                    : notice.targetFaculty || faculty}
+                </p>
+                {notice.expiresAt && (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {t("dashboard.expires").replace(
+                      "{date}",
+                      new Date(notice.expiresAt).toLocaleDateString(
+                        locale === "ar" ? "ar-EG" : locale === "ja" ? "ja-JP" : "en-GB",
+                        { day: "numeric", month: "short", year: "numeric" }
+                      )
+                    )}
+                  </p>
+                )}
+              </article>
+            ))}
+            {notices.length === 0 && !noticesLoading && (
+              <p className="rounded-2xl border border-dashed border-white/20 p-5 text-center text-sm text-slate-300">
+                {t("dashboard.noNotices")}
+              </p>
+            )}
+            {!noticesAvailable && (
+              <p className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-5 text-center text-sm text-amber-100">
+                {t("dashboard.noticesUnavailable")}
+              </p>
+            )}
+          </div>
+        </section>
 
         <section className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-3">

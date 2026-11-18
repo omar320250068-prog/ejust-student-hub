@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, isNotNull, like, or, sql, type SQL } from "drizzle-orm";
 import { connection } from "next/server";
 import { db } from "@/db";
+import type { HubExamRow, HubNoticeRow } from "@/lib/hub-feed";
 import {
   courseMeetings,
   courses,
@@ -35,6 +36,81 @@ const MAX_LIMIT = 20;
 function clampLimit(limit: number | undefined, fallback: number, max = MAX_LIMIT): number {
   if (!limit || !Number.isFinite(limit)) return fallback;
   return Math.min(Math.max(Math.trunc(limit), 1), max);
+}
+
+function rowsOf<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  const maybe = result as { rows?: unknown };
+  if (maybe && Array.isArray(maybe.rows)) return maybe.rows as T[];
+  return [];
+}
+
+/** Upcoming MCP-owned exams joined with the curriculum course title. */
+export async function findUpcomingExams(limit = 50): Promise<HubExamRow[]> {
+  await connection();
+
+  const result = await db.execute(sql`
+    select
+      e.id,
+      e.course_code as "courseCode",
+      c.name as "courseName",
+      c."nameAr" as "courseNameAr",
+      e.exam_type as "examType",
+      e.exam_date::text as "examDate",
+      e.start_time as "startTime",
+      e.end_time as "endTime",
+      e.building,
+      e.room,
+      e.notes
+    from exam e
+    left join course c on c.id = e.course_id
+    where e.exam_date >= current_date
+    order by e.exam_date asc, e.start_time asc
+    limit ${clampLimit(limit, 50, 100)}
+  `);
+  return rowsOf<HubExamRow>(result);
+}
+
+export interface AnnouncementQuery {
+  faculty?: string;
+  query?: string;
+  limit?: number;
+}
+
+/** Active hub notices; course/faculty relevance is applied by the caller. */
+export async function findActiveAnnouncements({
+  faculty = "",
+  query = "",
+  limit = 50,
+}: AnnouncementQuery = {}): Promise<HubNoticeRow[]> {
+  await connection();
+
+  const needle = `%${query.trim().slice(0, 120)}%`;
+  const result = await db.execute(sql`
+    select
+      a.id,
+      a.title,
+      a.body,
+      a.category,
+      a.course_code as "courseCode",
+      c.name as "courseName",
+      a.target_faculty as "targetFaculty",
+      a.expires_at::text as "expiresAt",
+      a.created_at::text as "createdAt"
+    from hub_announcement a
+    left join course c on c.id = a.course_id
+    where (a.expires_at is null or a.expires_at > now())
+      and (${faculty} = '' or a.target_faculty = '' or upper(a.target_faculty) = upper(${faculty}))
+      and (
+        ${query.trim()} = ''
+        or a.title ilike ${needle}
+        or a.body ilike ${needle}
+        or a.course_code ilike ${needle}
+      )
+    order by a.created_at desc
+    limit ${clampLimit(limit, 50, 100)}
+  `);
+  return rowsOf<HubNoticeRow>(result);
 }
 
 /**
@@ -495,6 +571,8 @@ export async function countDbSources() {
         Number
       ),
       announcements: sql<number>`(select count(*) from course_announcement)`.mapWith(Number),
+      exams: sql<number>`(select count(*) from exam)`.mapWith(Number),
+      hubNotices: sql<number>`(select count(*) from hub_announcement)`.mapWith(Number),
     })
     .from(sql`(select 1) as probe`);
 

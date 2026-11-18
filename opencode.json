@@ -5,6 +5,10 @@
       "ejust-hub": {
         "type": "local",
         "command": ["node", "mcp/ejust-hub-server.mjs"]
+      },
+      "gmail": {
+        "type": "local",
+        "command": ["npx", "-y", "@gongrzhe/server-gmail-autoauth-mcp"]
       }
     }
   }
