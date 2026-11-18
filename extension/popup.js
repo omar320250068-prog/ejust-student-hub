@@ -23,8 +23,19 @@
     return token() ? { Authorization: "Bearer " + token() } : {};
   }
 
-  function renderPreview(courses) {
+  function renderPreview(courses, metadata) {
     preview.innerHTML = "";
+    if (metadata && (metadata.cgpa !== null || metadata.passedCredits !== null || metadata.registeredCredits !== null || metadata.semester)) {
+      const summary = document.createElement("div");
+      summary.className = "summary";
+      const parts = [];
+      if (metadata.semester) parts.push(metadata.semester);
+      if (metadata.cgpa !== null) parts.push("CGPA " + Number(metadata.cgpa).toFixed(2));
+      if (metadata.passedCredits !== null) parts.push("Passed " + metadata.passedCredits + " CH");
+      if (metadata.registeredCredits !== null) parts.push("Registered " + metadata.registeredCredits + " CH");
+      summary.textContent = parts.join(" · ");
+      preview.appendChild(summary);
+    }
     if (!courses || courses.length === 0) {
       const empty = document.createElement("div");
       empty.textContent = "No courses detected yet.";
@@ -33,8 +44,16 @@
     }
     courses.forEach(function (course) {
       const row = document.createElement("div");
-      const grade = course.grade ? " · " + course.grade : "";
+      const grade = course.grade
+        ? " · " + course.grade
+        : course.status === "registered" ? " · Registered" : "";
       row.textContent = course.courseCode + " — " + (course.courseName || "Course") + grade;
+      if (course.sections && course.sections.length > 0) {
+        const sections = document.createElement("span");
+        sections.className = "sections";
+        sections.textContent = course.sections.join(", ");
+        row.appendChild(sections);
+      }
       preview.appendChild(row);
     });
   }
@@ -95,7 +114,7 @@
     }
     try {
       const data = await post({ rawText: text, dryRun: true });
-      renderPreview(data.courses || []);
+      renderPreview(data.courses || [], data.metadata);
       setStatus("Preview only — nothing saved yet.");
     } catch (error) {
       setStatus(error.message, true);
@@ -116,7 +135,7 @@
     setStatus("Saving…");
     try {
       const data = await post({ rawText: text });
-      renderPreview(data.courses || []);
+      renderPreview(data.courses || [], data.metadata);
       setStatus("Synced! CGPA " + Number(data.cgpa || 0).toFixed(2) + " · " + (data.completedCredits || 0) + " credits.");
       await chrome.storage.local.set({ lastSyncAt: new Date().toISOString() });
     } catch (error) {
