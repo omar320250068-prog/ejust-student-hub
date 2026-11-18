@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hybridRetrieve, knowledgeBase } from "@/lib/rag/knowledge";
 import {
   countDbSources,
+  facultyQueryTokens,
   findCourseMeetings,
   findCourses,
   findFacultyOffice,
@@ -25,13 +26,6 @@ interface FusedEntry {
   snippet: string;
   rrf: number;
   fields?: LiveField[];
-}
-
-function officeTerm(query: string): string {
-  return query
-    .replace(/مكتب|دكتور|أ\.?د\.?|د\.|office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|\bwhere\b|\bis\b|\bthe\b|\?|؟/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function officeFields(row: OfficeRow): LiveField[] {
@@ -90,8 +84,11 @@ export async function GET(request: Request) {
     }
 
     if (lookup === "office") {
+      // The pill sends `name`, while direct/API callers send `q`; accept both.
+      const officeQuery = searchParams.get("name") || query;
+      const tokens = facultyQueryTokens(officeQuery);
       const offices = await findFacultyOffice({
-        name: searchParams.get("name") ?? undefined,
+        name: tokens.length > 0 ? tokens.join(" ") : undefined,
         department: searchParams.get("department") ?? undefined,
         onlyInOffice: searchParams.get("inOffice") === "1",
         limit,
@@ -154,7 +151,7 @@ export async function GET(request: Request) {
     quota = { used: usage.used + 1, limit: usage.quota };
   }
 
-  const officeName = OFFICE_INTENT.test(query) ? officeTerm(query) : "";
+  const officeName = OFFICE_INTENT.test(query) ? facultyQueryTokens(query).join(" ") : "";
   const courseCode = query.match(COURSE_INTENT)?.[0] ?? "";
 
   const [fused, officeHits, courseHits] = await Promise.all([

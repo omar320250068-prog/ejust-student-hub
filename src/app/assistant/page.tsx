@@ -125,7 +125,7 @@ const SOURCE_BADGE: Record<string, { key: TranslationKey; tone: string; icon: ty
 };
 
 function rowsFor(lookup: LookupKind, payload: Record<string, unknown>): LookupRow[] {
-  const key = lookup === "schedule" ? "meetings" : lookup;
+  const key = lookup === "schedule" ? "meetings" : lookup === "office" ? "offices" : lookup;
   const value = payload[key];
   return Array.isArray(value) ? (value as LookupRow[]) : [];
 }

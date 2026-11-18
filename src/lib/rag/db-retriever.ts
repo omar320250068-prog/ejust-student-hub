@@ -310,20 +310,65 @@ export interface FacultyOfficeQuery {
   limit?: number;
 }
 
+/** Arabic spelling variants folded to their canonical form for matching. */
+function normalizeArabic(value: string): string {
+  return value
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه");
+}
+
+const FACULTY_STOP_WORDS = [
+  // Arabic conversational filler
+  "مكتب", "غرفة", "قاعة", "مبنى", "الدكتور", "دكتور", "د", "أد", "استاذ", "أستاذ",
+  "المعيد", "معيد", "فين", "أين", "اين", "هو", "هي", "بتاع", "رقم", "مواعيد",
+  "الساعات", "المكتبية", "للدكتور",
+  // English conversational filler
+  "office", "room", "building", "hours", "dr", "doctor", "prof", "professor", "ta",
+  "where", "is", "find", "locate", "for", "the", "of",
+];
+
+const FACULTY_STOP_SET = new Set(
+  FACULTY_STOP_WORDS.map((word) => normalizeArabic(word.toLowerCase()))
+);
+
+/**
+ * Shared cleaner for faculty lookups. Strips punctuation and conversational
+ * words, then returns normalized tokens that must ALL match the faculty record.
+ * Used by both the retriever and the assistant API so a free-text question and
+ * the "Office hours" lookup produce the same search terms.
+ */
+export function facultyQueryTokens(query: string): string[] {
+  return query
+    .replace(/[؟?.،,\-–—_!؛:"'()[\]{}]/g, " ")
+    .split(/\s+/)
+    .map((token) => normalizeArabic(token.toLowerCase()))
+    .filter((token) => token.length > 1 && !FACULTY_STOP_SET.has(token));
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 /** Direct office lookup, including live "is the professor in right now" status. */
 export async function findFacultyOffice(query: FacultyOfficeQuery = {}) {
   await connection();
 
   const filters: SQL[] = [];
   if (query.name) {
-    const term = `%${query.name}%`;
-    const match = or(
-      ilike(facultyOffices.name, term),
-      ilike(facultyOffices.nameAr, term),
-      ilike(facultyOffices.building, term),
-      ilike(facultyOffices.officeNumber, term)
-    );
-    if (match) filters.push(match);
+    const tokens = facultyQueryTokens(query.name);
+    if (tokens.length === 0) return [];
+
+    // Fold Arabic variant letters in the columns too, so "أحمد" matches
+    // "احمد" and "فوزى" matches "فوزي" on either side of the comparison.
+    const searchable = sql`translate(
+      concat(${facultyOffices.name}, ' ', coalesce(${facultyOffices.nameAr}, ''), ' ',
+             ${facultyOffices.building}, ' ', ${facultyOffices.officeNumber}),
+      'أإآىة', 'ااايه'
+    )`;
+    for (const token of tokens) {
+      filters.push(ilike(searchable, `%${escapeLike(token)}%`));
+    }
   }
   if (query.department) {
     filters.push(ilike(facultyOffices.department, `%${query.department}%`));
