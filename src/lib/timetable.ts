@@ -24,7 +24,11 @@ export interface ClassBlock {
   type?: "Lecture" | "Lab" | "Tutorial" | "Custom";
   faculty?: "CSIT" | "Engineering" | "Business";
   year?: 1 | 2 | 3 | 4;
-  group?: "Group 1" | "Group 2";
+  group?: string;
+  track?: "CNC" | "AID" | "CSC" | "BIF" | null;
+  section?: string;
+  columnKey?: string;
+  source?: "db" | "custom";
 }
 
 export interface Conflict {

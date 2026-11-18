@@ -47,6 +47,9 @@ next-env.d.ts
 .vercel
 .env*
 
+# raw source documents (never commit)
+data/raw/*
+
 # python venv artifacts (stray)
 .venv/
 /Lib/

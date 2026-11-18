@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, Download, Plus, Trash2, X } from "lucide-react";
 import {
-  DAYS,
   type ClassBlock,
   type Day,
   downloadIcs,
@@ -11,23 +10,51 @@ import {
   isValidTimeRange,
   toMinutes,
 } from "@/lib/timetable";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import PrintButton from "@/components/PrintButton";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 
 type Faculty = "CSIT" | "Engineering" | "Business";
 type AcademicYear = 1 | 2 | 3 | 4;
-type Group = "Group 1" | "Group 2";
+type Group = "Group 1" | "Group 2" | "Group 3" | "Group 4";
+type Track = "CNC" | "AID" | "CSC" | "BIF";
+type MeetingType = "LECTURE" | "LAB" | "SECTION" | "TUTORIAL";
 
 interface Profile {
   faculty: Faculty;
   year: AcademicYear;
   group: Group;
+  track: Track;
+  section: string;
+}
+
+interface ApiMeeting {
+  meetingId: string;
+  courseCode: string;
+  courseName: string;
+  courseNameAr: string | null;
+  day: "SATURDAY" | "SUNDAY" | "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY";
+  startTime: string;
+  endTime: string;
+  building: string | null;
+  room: string | null;
+  group: string | null;
+  meetingType: MeetingType;
+  instructor: string | null;
+  academicYear: string;
+  semester: string;
 }
 
 interface SavedTimetable {
   version: 1;
   schedules: Record<string, ClassBlock[]>;
+}
+
+interface OfficialState {
+  key: string;
+  meetings: ApiMeeting[];
+  loading: boolean;
+  error: boolean;
 }
 
 const STORAGE_KEY = "student_custom_timetable";
@@ -37,52 +64,148 @@ const GRID_END = 16 * 60;
 const HOUR_PX = 68;
 const FACULTIES: Faculty[] = ["CSIT", "Engineering", "Business"];
 const YEARS: AcademicYear[] = [1, 2, 3, 4];
-const GROUPS: Group[] = ["Group 1", "Group 2"];
-const WEEKDAYS = DAYS.slice(0, 5);
+const TRACKS: Track[] = ["CNC", "AID", "CSC", "BIF"];
+const SCHEDULE_DAYS: Day[] = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu"];
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2"];
 
-const DEFAULT_PROFILE: Profile = { faculty: "CSIT", year: 1, group: "Group 1" };
-
-const DEFAULT_CSIT_FALL_2026: ClassBlock[] = [
-  { id: "csit-111", courseCode: "CSC 111", title: "Introduction to Computing", day: "Sun", start: "09:00", end: "10:30", location: "Lecture Hall A1", instructor: "Dr. Hassan", color: COLORS[0], type: "Lecture", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "math-111", courseCode: "MTH 111", title: "Calculus I", day: "Sun", start: "11:00", end: "12:30", location: "Lecture Hall B2", instructor: "Dr. Salma", color: COLORS[1], type: "Lecture", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "ece-111", courseCode: "ECE 111", title: "Digital Logic", day: "Mon", start: "09:00", end: "10:30", location: "Building 8 · Lab 2", instructor: "Dr. Omar", color: COLORS[2], type: "Lab", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "phy-113", courseCode: "PHY 113", title: "Physics for Engineers", day: "Mon", start: "11:00", end: "12:30", location: "Science Hall 1", instructor: "Dr. Yuki", color: COLORS[3], type: "Lecture", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "lra-401", courseCode: "LRA 401", title: "Language & Report Writing", day: "Tue", start: "09:30", end: "11:00", location: "Humanities H2", instructor: "Ms. Aya", color: COLORS[4], type: "Tutorial", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "csit-112", courseCode: "CSC 112", title: "Programming Fundamentals", day: "Wed", start: "09:00", end: "10:30", location: "Computer Lab 1", instructor: "Dr. Hassan", color: COLORS[0], type: "Lab", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "mth-112", courseCode: "MTH 112", title: "Linear Algebra", day: "Wed", start: "11:00", end: "12:30", location: "Lecture Hall B2", instructor: "Dr. Salma", color: COLORS[1], type: "Lecture", faculty: "CSIT", year: 1, group: "Group 1" },
-  { id: "phy-114", courseCode: "PHY 114", title: "Physics Laboratory", day: "Thu", start: "13:00", end: "15:00", location: "Physics Lab 3", instructor: "Dr. Yuki", color: COLORS[3], type: "Lab", faculty: "CSIT", year: 1, group: "Group 1" },
-];
+const DEFAULT_PROFILE: Profile = {
+  faculty: "CSIT",
+  year: 1,
+  group: "Group 1",
+  track: "CSC",
+  section: "1",
+};
 
 const EMPTY_FORM = {
   title: "",
   courseCode: "",
-  day: "Sun" as Day,
+  day: "Sat" as Day,
   start: "09:00",
   end: "10:00",
   location: "",
   instructor: "",
 };
 
-function profileKey(profile: Profile) {
+const YEAR_LABEL: Record<AcademicYear, TranslationKey> = {
+  1: "timetable.firstYear",
+  2: "timetable.secondYear",
+  3: "timetable.thirdYear",
+  4: "timetable.fourthYear",
+};
+
+const GROUP_LABEL: Record<Group, TranslationKey> = {
+  "Group 1": "timetable.group1",
+  "Group 2": "timetable.group2",
+  "Group 3": "timetable.group3",
+  "Group 4": "timetable.group4",
+};
+
+const DAY_FROM_DB: Record<ApiMeeting["day"], Day> = {
+  SATURDAY: "Sat",
+  SUNDAY: "Sun",
+  MONDAY: "Mon",
+  TUESDAY: "Tue",
+  WEDNESDAY: "Wed",
+  THURSDAY: "Thu",
+};
+
+const TYPE_FROM_DB: Record<MeetingType, NonNullable<ClassBlock["type"]>> = {
+  LECTURE: "Lecture",
+  LAB: "Lab",
+  SECTION: "Tutorial",
+  TUTORIAL: "Tutorial",
+};
+
+function sectionOptions(profile: Profile): string[] {
+  const groupNumber = Number(profile.group.replace(/\D/g, ""));
+  if (profile.year === 1) return groupNumber === 1 ? ["1", "2", "3"] : ["4", "5"];
+  if (profile.year === 2) {
+    return Array.from({ length: 3 }, (_, index) => String((groupNumber - 1) * 3 + index + 1));
+  }
+  const count = profile.track === "AID" ? 4 : profile.track === "CNC" ? 3 : 1;
+  return Array.from({ length: count }, (_, index) => String(index + 1));
+}
+
+function columnKeyFor(profile: Profile): string {
+  const section = profile.section || sectionOptions(profile)[0];
+  if (profile.year <= 2) return `Y${profile.year}G${Number(profile.group.replace(/\D/g, ""))}S${section}`;
+  return `Y${profile.year}${profile.track}S${section}`;
+}
+
+function profileKey(profile: Profile): string {
+  return [
+    profile.faculty,
+    profile.year,
+    profile.group.replace(" ", ""),
+    profile.track,
+    profile.section,
+  ].join("-");
+}
+
+function legacyProfileKey(profile: Profile): string {
   return `${profile.faculty}-${profile.year}-${profile.group.replace(" ", "")}`;
 }
 
-function defaultScheduleFor(profile: Profile): ClassBlock[] {
-  if (profile.faculty === "CSIT" && profile.year === 1) {
-    return DEFAULT_CSIT_FALL_2026.map((course) => ({ ...course, group: profile.group }));
-  }
-  return [];
+function facultyKey(faculty: Faculty): TranslationKey {
+  return faculty === "CSIT"
+    ? "timetable.csit"
+    : faculty === "Engineering"
+      ? "timetable.engineering"
+      : "timetable.business";
 }
 
-function facultyKey(faculty: Faculty) {
-  return `timetable.${faculty === "CSIT" ? "csit" : faculty === "Engineering" ? "engineering" : "business"}` as const;
+function normalizeCode(code: string): string {
+  return code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+}
+
+function colorFor(code: string): string {
+  let hash = 0;
+  for (const char of code) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
+
+function meetingToBlock(meeting: ApiMeeting, profile: Profile, locale: string): ClassBlock {
+  const location = [meeting.building, meeting.room].filter(Boolean).join(" · ") || "TBA";
+  const title = locale === "ar" && meeting.courseNameAr
+    ? meeting.courseNameAr
+    : meeting.courseName || meeting.courseCode;
+
+  return {
+    id: `db-${meeting.meetingId}`,
+    courseCode: meeting.courseCode,
+    title,
+    day: DAY_FROM_DB[meeting.day] ?? "Sat",
+    start: meeting.startTime,
+    end: meeting.endTime,
+    location,
+    color: colorFor(meeting.courseCode),
+    instructor: meeting.instructor ?? undefined,
+    type: TYPE_FROM_DB[meeting.meetingType] ?? "Lecture",
+    faculty: profile.faculty,
+    year: profile.year,
+    group: profile.year <= 2 ? profile.group : undefined,
+    track: profile.year >= 3 ? profile.track : null,
+    section: profile.section,
+    columnKey: columnKeyFor(profile),
+    source: "db",
+  };
+}
+
+function isCustomBlock(block: ClassBlock): boolean {
+  return block.source === "custom" || block.type === "Custom";
 }
 
 export default function TimetablePage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
-  const [blocks, setBlocks] = useState<ClassBlock[]>(DEFAULT_CSIT_FALL_2026);
+  // Keyed by column so a profile change shows loading without an effect-time setState.
+  const [officialState, setOfficialState] = useState<OfficialState>({
+    key: columnKeyFor(DEFAULT_PROFILE),
+    meetings: [],
+    loading: true,
+    error: false,
+  });
+  const [customBlocks, setCustomBlocks] = useState<ClassBlock[]>([]);
   // Persisted snapshots live in a ref: they mirror localStorage, never drive renders.
   const savedRef = useRef<SavedTimetable>({ version: 1, schedules: {} });
   const [ready, setReady] = useState(false);
@@ -92,27 +215,41 @@ export default function TimetablePage() {
   const synced = useSyncedCourses();
   const [onlySynced, setOnlySynced] = useState(false);
 
+  const columnKey = useMemo(() => columnKeyFor(profile), [profile]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const legacy = LEGACY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+        let loaded: ClassBlock[] = [];
         if (raw) {
           const parsed = JSON.parse(raw) as SavedTimetable;
           if (parsed?.version === 1 && parsed.schedules) {
             savedRef.current = parsed;
-            setBlocks(parsed.schedules[profileKey(DEFAULT_PROFILE)] ?? defaultScheduleFor(DEFAULT_PROFILE));
+            loaded =
+              parsed.schedules[profileKey(DEFAULT_PROFILE)] ??
+              parsed.schedules[legacyProfileKey(DEFAULT_PROFILE)] ??
+              [];
           }
         } else if (legacy) {
           const legacyBlocks = JSON.parse(legacy) as ClassBlock[];
           if (Array.isArray(legacyBlocks)) {
-            const migrated = { version: 1 as const, schedules: { [profileKey(DEFAULT_PROFILE)]: legacyBlocks } };
-            savedRef.current = migrated;
-            setBlocks(legacyBlocks);
+            savedRef.current = {
+              version: 1,
+              schedules: {
+                [profileKey(DEFAULT_PROFILE)]: legacyBlocks.filter(isCustomBlock).map((block) => ({
+                  ...block,
+                  source: "custom" as const,
+                })),
+              },
+            };
+            loaded = savedRef.current.schedules[profileKey(DEFAULT_PROFILE)];
           }
         }
+        setCustomBlocks(loaded.filter(isCustomBlock).map((block) => ({ ...block, source: "custom" as const })));
       } catch {
-        setBlocks(defaultScheduleFor(DEFAULT_PROFILE));
+        setCustomBlocks([]);
       } finally {
         setReady(true);
       }
@@ -124,48 +261,91 @@ export default function TimetablePage() {
     if (!ready) return;
     const next = {
       ...savedRef.current,
-      schedules: { ...savedRef.current.schedules, [profileKey(profile)]: blocks },
+      schedules: { ...savedRef.current.schedules, [profileKey(profile)]: customBlocks },
     };
     savedRef.current = next;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    localStorage.setItem("ejust:timetable", JSON.stringify(blocks));
-    localStorage.setItem("ejust-timetable-v1", JSON.stringify(blocks));
-  }, [blocks, profile, ready]);
+    for (const key of LEGACY_KEYS) localStorage.setItem(key, JSON.stringify(customBlocks));
+  }, [customBlocks, profile, ready]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      columnKey,
+      academicYear: "2026/2027",
+      semester: "Fall",
+      limit: "500",
+    });
+    fetch(`/api/timetable/meetings?${params.toString()}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("failed");
+        return response.json() as Promise<{ meetings: ApiMeeting[] }>;
+      })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setOfficialState({
+          key: columnKey,
+          meetings: Array.isArray(data.meetings) ? data.meetings : [],
+          loading: false,
+          error: false,
+        });
+      })
+      .catch((fetchError: unknown) => {
+        if (controller.signal.aborted || (fetchError instanceof Error && fetchError.name === "AbortError")) return;
+        setOfficialState({ key: columnKey, meetings: [], loading: false, error: true });
+      });
+    return () => controller.abort();
+  }, [columnKey]);
+
+  const loading = officialState.key !== columnKey || officialState.loading;
+  const loadError = officialState.key === columnKey && officialState.error;
 
   const syncedCodes = useMemo(
-    () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
+    () => new Set(synced.courses.map((course) => normalizeCode(course.courseCode))),
     [synced.courses]
   );
   const showingSynced = onlySynced && syncedCodes.size > 0;
-  const visibleBlocks = useMemo(
-    () =>
-      showingSynced
-        ? blocks.filter((block) => syncedCodes.has(block.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase()))
-        : blocks,
-    [blocks, showingSynced, syncedCodes]
+
+  const officialBlocks = useMemo(
+    () => officialState.meetings.map((meeting) => meetingToBlock(meeting, profile, locale)),
+    [officialState.meetings, profile, locale]
   );
 
+  const visibleBlocks = useMemo(() => {
+    const merged = [...officialBlocks, ...customBlocks];
+    return showingSynced
+      ? merged.filter((block) => syncedCodes.has(normalizeCode(block.courseCode)))
+      : merged;
+  }, [officialBlocks, customBlocks, showingSynced, syncedCodes]);
+
   const conflicts = useMemo(() => findConflicts(visibleBlocks), [visibleBlocks]);
-  const conflictIds = useMemo(() => new Set(conflicts.flatMap((conflict) => [conflict.a.id, conflict.b.id])), [conflicts]);
-  const customCount = visibleBlocks.filter((block) => block.type === "Custom").length;
+  const conflictIds = useMemo(
+    () => new Set(conflicts.flatMap((conflict) => [conflict.a.id, conflict.b.id])),
+    [conflicts]
+  );
+  const customCount = customBlocks.length;
   const gridHeight = ((GRID_END - GRID_START) / 60) * HOUR_PX;
+  const sections = sectionOptions(profile);
+  const groupOptions = profile.year === 1 ? (["Group 1", "Group 2"] as Group[]) : (["Group 1", "Group 2", "Group 3", "Group 4"] as Group[]);
 
   function changeProfile<K extends keyof Profile>(key: K, value: Profile[K]) {
-    const nextProfile = { ...profile, [key]: value } as Profile;
-    setProfile(nextProfile);
-    setBlocks(savedRef.current.schedules[profileKey(nextProfile)] ?? defaultScheduleFor(nextProfile));
+    const next = { ...profile, [key]: value } as Profile;
+    const nextSections = sectionOptions(next);
+    if (!nextSections.includes(next.section)) next.section = nextSections[0];
+    setProfile(next);
+    setCustomBlocks(savedRef.current.schedules[profileKey(next)] ?? []);
   }
 
   function removeBlock(id: string) {
-    const block = blocks.find((item) => item.id === id);
+    const block = customBlocks.find((item) => item.id === id);
     if (block && window.confirm(t("timetable.confirmRemove"))) {
-      setBlocks((current) => current.filter((item) => item.id !== id));
+      setCustomBlocks((current) => current.filter((item) => item.id !== id));
     }
   }
 
   function resetSchedule() {
     if (!window.confirm(t("timetable.resetConfirm"))) return;
-    setBlocks(defaultScheduleFor(profile));
+    setCustomBlocks([]);
   }
 
   function addCustomCourse(event: FormEvent<HTMLFormElement>) {
@@ -174,25 +354,36 @@ export default function TimetablePage() {
       setError(t("timetable.required"));
       return;
     }
-    if (!isValidTimeRange(form.start, form.end) || toMinutes(form.start) < GRID_START || toMinutes(form.end) > GRID_END) {
+    if (
+      !isValidTimeRange(form.start, form.end) ||
+      toMinutes(form.start) < GRID_START ||
+      toMinutes(form.end) > GRID_END
+    ) {
       setError(t("timetable.invalidTime"));
       return;
     }
-    setBlocks((current) => [...current, {
-      id: `custom-${Date.now()}`,
-      title: form.title.trim(),
-      courseCode: form.courseCode.trim().toUpperCase(),
-      day: form.day,
-      start: form.start,
-      end: form.end,
-      location: form.location.trim() || "TBA",
-      instructor: form.instructor.trim() || "TBA",
-      color: COLORS[current.length % COLORS.length],
-      type: "Custom",
-      faculty: profile.faculty,
-      year: profile.year,
-      group: profile.group,
-    }]);
+    setCustomBlocks((current) => [
+      ...current,
+      {
+        id: `custom-${Date.now()}`,
+        title: form.title.trim(),
+        courseCode: form.courseCode.trim().toUpperCase(),
+        day: form.day,
+        start: form.start,
+        end: form.end,
+        location: form.location.trim() || "TBA",
+        instructor: form.instructor.trim() || "TBA",
+        color: COLORS[current.length % COLORS.length],
+        type: "Custom",
+        faculty: profile.faculty,
+        year: profile.year,
+        group: profile.year <= 2 ? profile.group : undefined,
+        track: profile.year >= 3 ? profile.track : null,
+        section: profile.section,
+        columnKey,
+        source: "custom",
+      },
+    ]);
     setForm(EMPTY_FORM);
     setError("");
     setModalOpen(false);
@@ -210,25 +401,52 @@ export default function TimetablePage() {
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
             <PrintButton />
-            <button type="button" onClick={() => downloadIcs(visibleBlocks)} disabled={!visibleBlocks.length} className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"><Download size={15} />{t("timetable.export")}</button>
-            <button type="button" onClick={() => setModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-cyan-100"><Plus size={15} />{t("timetable.addCourse")}</button>
+            <button
+              type="button"
+              onClick={() => downloadIcs(visibleBlocks)}
+              disabled={!visibleBlocks.length}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={15} />
+              {t("timetable.exportCalendar")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-cyan-100"
+            >
+              <Plus size={15} />
+              {t("timetable.addCourse")}
+            </button>
           </div>
         </header>
 
-        <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:grid-cols-3">
+        <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:grid-cols-2 lg:grid-cols-4">
           <Filter label={t("timetable.faculty")} value={profile.faculty} onChange={(value) => changeProfile("faculty", value as Faculty)}>
             {FACULTIES.map((faculty) => <option key={faculty} value={faculty}>{t(facultyKey(faculty))}</option>)}
           </Filter>
           <Filter label={t("timetable.academicYear")} value={profile.year} onChange={(value) => changeProfile("year", Number(value) as AcademicYear)}>
-            {YEARS.map((year) => <option key={year} value={year}>{t(`timetable.${["", "firstYear", "secondYear", "thirdYear", "fourthYear"][year]}` as never)}</option>)}
+            {YEARS.map((year) => <option key={year} value={year}>{t(YEAR_LABEL[year])}</option>)}
           </Filter>
-          <Filter label={t("timetable.group")} value={profile.group} onChange={(value) => changeProfile("group", value as Group)}>
-            {GROUPS.map((group) => <option key={group} value={group}>{t(`timetable.${group === "Group 1" ? "group1" : "group2"}` as never)}</option>)}
+          {profile.year <= 2 ? (
+            <Filter label={t("timetable.group")} value={profile.group} onChange={(value) => changeProfile("group", value as Group)}>
+              {groupOptions.map((group) => <option key={group} value={group}>{t(GROUP_LABEL[group])}</option>)}
+            </Filter>
+          ) : (
+            <Filter label={t("timetable.track")} value={profile.track} onChange={(value) => changeProfile("track", value as Track)}>
+              {TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
+            </Filter>
+          )}
+          <Filter label={t("timetable.section")} value={profile.section} onChange={(value) => changeProfile("section", value)}>
+            {sections.map((section) => <option key={section} value={section}>{section}</option>)}
           </Filter>
         </section>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <span>{t(facultyKey(profile.faculty))} · {t(`timetable.${["", "firstYear", "secondYear", "thirdYear", "fourthYear"][profile.year]}` as never)} · {profile.group}</span>
+          <span>
+            {t(facultyKey(profile.faculty))} · {t(YEAR_LABEL[profile.year])} ·{" "}
+            {profile.year <= 2 ? t(GROUP_LABEL[profile.group]) : profile.track} · {t("timetable.section")} {profile.section}
+          </span>
           <div className="flex flex-wrap items-center gap-3">
             {synced.courses.length > 0 && (
               <label className="flex cursor-pointer items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 font-semibold text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
@@ -246,55 +464,128 @@ export default function TimetablePage() {
           </div>
         </div>
 
-        {conflicts.length > 0 && <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><span>{conflicts.length} {t("timetable.conflicts")}</span></div>}
+        {loading && <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t("timetable.loading")}</p>}
+        {loadError && <p className="mt-4 text-xs font-medium text-rose-600 dark:text-rose-300">{t("timetable.error")}</p>}
+
+        {conflicts.length > 0 && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+            <span>{conflicts.length} {t("timetable.conflicts")}</span>
+          </div>
+        )}
 
         <section className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <div className="flex min-w-[820px]">
-            <div className="w-14 shrink-0 pt-9">{Array.from({ length: 7 }, (_, index) => <div key={index} className="relative text-right text-[10px] text-slate-400" style={{ height: HOUR_PX }}><span className="absolute -top-2 right-2">{String(9 + index).padStart(2, "0")}:00</span></div>)}</div>
-            {WEEKDAYS.map((day) => {
-              const dayBlocks = visibleBlocks.filter((block) => block.day === day);
-              return <div key={day} className="min-w-0 flex-1 border-l border-slate-200 dark:border-slate-800">
-                <div className="h-9 text-center text-xs font-bold text-slate-700 dark:text-slate-200">{day}</div>
-                <div className="relative" style={{ height: gridHeight }}>
-                  {Array.from({ length: 8 }, (_, index) => <div key={index} className="absolute inset-x-0 border-t border-dashed border-slate-200 dark:border-slate-800" style={{ top: index * HOUR_PX }} />)}
-                  {dayBlocks.map((block) => {
-                    const top = ((toMinutes(block.start) - GRID_START) / 60) * HOUR_PX;
-                    const height = Math.max(34, ((toMinutes(block.end) - toMinutes(block.start)) / 60) * HOUR_PX - 4);
-                    return <article key={block.id} className="group absolute left-1 right-1 overflow-hidden rounded-xl p-2 text-white shadow-sm" style={{ top, height, background: block.color, outline: conflictIds.has(block.id) ? "2px solid #f59e0b" : undefined }} title={`${block.courseCode} ${block.title}`}>
-                      <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[9px] font-semibold">{t(`timetable.${(block.type ?? "Custom").toLowerCase()}` as never)}</span>
-                      <p className="mt-1 truncate text-[11px] font-bold">{block.courseCode}</p>
-                      <p className="truncate text-[10px] opacity-90">{block.start}–{block.end}</p>
-                      <button type="button" onClick={() => removeBlock(block.id)} className="absolute right-1 top-1 hidden rounded-md bg-black/25 p-1 group-hover:block" aria-label={`${t("timetable.remove")} ${block.courseCode}`}><Trash2 size={12} /></button>
-                    </article>;
-                  })}
-                  {dayBlocks.length === 0 && <p className="absolute inset-x-0 top-5 text-center text-[10px] text-slate-400">{t("timetable.empty")}</p>}
+          <div className="flex min-w-[980px]">
+            <div className="w-14 shrink-0 pt-9">
+              {Array.from({ length: 7 }, (_, index) => (
+                <div key={index} className="relative text-right text-[10px] text-slate-400" style={{ height: HOUR_PX }}>
+                  <span className="absolute -top-2 right-2">{String(9 + index).padStart(2, "0")}:00</span>
                 </div>
-              </div>;
+              ))}
+            </div>
+            {SCHEDULE_DAYS.map((day) => {
+              const dayBlocks = visibleBlocks.filter((block) => block.day === day);
+              return (
+                <div key={day} className="min-w-0 flex-1 border-l border-slate-200 dark:border-slate-800">
+                  <div className="h-9 text-center text-xs font-bold text-slate-700 dark:text-slate-200">{day}</div>
+                  <div className="relative" style={{ height: gridHeight }}>
+                    {Array.from({ length: 8 }, (_, index) => (
+                      <div key={index} className="absolute inset-x-0 border-t border-dashed border-slate-200 dark:border-slate-800" style={{ top: index * HOUR_PX }} />
+                    ))}
+                    {dayBlocks.map((block) => {
+                      const top = ((toMinutes(block.start) - GRID_START) / 60) * HOUR_PX;
+                      const height = Math.max(34, ((toMinutes(block.end) - toMinutes(block.start)) / 60) * HOUR_PX - 4);
+                      return (
+                        <article
+                          key={block.id}
+                          className="group absolute left-1 right-1 overflow-hidden rounded-xl p-2 text-white shadow-sm"
+                          style={{ top, height, background: block.color, outline: conflictIds.has(block.id) ? "2px solid #f59e0b" : undefined }}
+                          title={`${block.courseCode} ${block.title}`}
+                        >
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[9px] font-semibold">
+                              {t(`timetable.${(block.type ?? "Custom").toLowerCase()}` as never)}
+                            </span>
+                            {block.source === "db" && (
+                              <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-semibold">
+                                {t("timetable.official")}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 truncate text-[11px] font-bold">{block.courseCode}</p>
+                          <p className="truncate text-[10px] opacity-90">{block.start}–{block.end}</p>
+                          <p className="truncate text-[9px] opacity-80">{block.location}</p>
+                          {block.source === "custom" && (
+                            <button
+                              type="button"
+                              onClick={() => removeBlock(block.id)}
+                              className="absolute right-1 top-1 hidden rounded-md bg-black/25 p-1 group-hover:block"
+                              aria-label={`${t("timetable.remove")} ${block.courseCode}`}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </article>
+                      );
+                    })}
+                    {dayBlocks.length === 0 && !loading && (
+                      <p className="absolute inset-x-0 top-5 text-center text-[10px] text-slate-400">{t("timetable.empty")}</p>
+                    )}
+                  </div>
+                </div>
+              );
             })}
           </div>
         </section>
 
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-          {(["Lecture", "Lab", "Tutorial", "Custom"] as const).map((type, index) => <span key={type} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900"><i className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index] }} />{t(`timetable.${type.toLowerCase()}` as never)}</span>)}
+          {(["Lecture", "Lab", "Tutorial", "Custom"] as const).map((type, index) => (
+            <span key={type} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900">
+              <i className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index] }} />
+              {t(`timetable.${type.toLowerCase()}` as never)}
+            </span>
+          ))}
         </div>
       </div>
 
-      {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="custom-course-title">
-        <form onSubmit={addCustomCourse} className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-300">{t("timetable.custom")}</p><h2 id="custom-course-title" className="mt-1 text-xl font-semibold">{t("timetable.addCourse")}</h2></div><button type="button" onClick={() => setModalOpen(false)} aria-label={t("timetable.cancel")} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button></div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Field label={t("timetable.courseName")} value={form.title} onChange={(value) => setForm({ ...form, title: value })} placeholder="Human Computer Interaction" />
-            <Field label={t("timetable.code")} value={form.courseCode} onChange={(value) => setForm({ ...form, courseCode: value })} placeholder="CSC 301" />
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400"><span>{t("timetable.day")}</span><select value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value as Day })} className={inputClass}>{WEEKDAYS.map((day) => <option key={day}>{day}</option>)}</select></label>
-            <Field label={t("timetable.location")} value={form.location} onChange={(value) => setForm({ ...form, location: value })} placeholder="Building 5 · Room 204" />
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400"><span>{t("timetable.start")}</span><input type="time" min="09:00" max="16:00" value={form.start} onChange={(event) => setForm({ ...form, start: event.target.value })} className={inputClass} /></label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400"><span>{t("timetable.end")}</span><input type="time" min="09:00" max="16:00" value={form.end} onChange={(event) => setForm({ ...form, end: event.target.value })} className={inputClass} /></label>
-            <div className="sm:col-span-2"><Field label={t("timetable.instructor")} value={form.instructor} onChange={(value) => setForm({ ...form, instructor: value })} placeholder="Dr. Aiko Tanaka" /></div>
-          </div>
-          {error && <p className="mt-3 text-sm font-medium text-rose-600 dark:text-rose-300">{error}</p>}
-          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">{t("timetable.cancel")}</button><button type="submit" className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">{t("timetable.add")}</button></div>
-        </form>
-      </div>}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="custom-course-title">
+          <form onSubmit={addCustomCourse} className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-300">{t("timetable.custom")}</p>
+                <h2 id="custom-course-title" className="mt-1 text-xl font-semibold">{t("timetable.addCourse")}</h2>
+              </div>
+              <button type="button" onClick={() => setModalOpen(false)} aria-label={t("timetable.cancel")} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Field label={t("timetable.courseName")} value={form.title} onChange={(value) => setForm({ ...form, title: value })} placeholder="Human Computer Interaction" />
+              <Field label={t("timetable.code")} value={form.courseCode} onChange={(value) => setForm({ ...form, courseCode: value })} placeholder="CSC 301" />
+              <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <span>{t("timetable.day")}</span>
+                <select value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value as Day })} className={inputClass}>
+                  {SCHEDULE_DAYS.map((day) => <option key={day}>{day}</option>)}
+                </select>
+              </label>
+              <Field label={t("timetable.location")} value={form.location} onChange={(value) => setForm({ ...form, location: value })} placeholder="Building 5 · Room 204" />
+              <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <span>{t("timetable.start")}</span>
+                <input type="time" min="09:00" max="16:00" value={form.start} onChange={(event) => setForm({ ...form, start: event.target.value })} className={inputClass} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <span>{t("timetable.end")}</span>
+                <input type="time" min="09:00" max="16:00" value={form.end} onChange={(event) => setForm({ ...form, end: event.target.value })} className={inputClass} />
+              </label>
+              <div className="sm:col-span-2"><Field label={t("timetable.instructor")} value={form.instructor} onChange={(value) => setForm({ ...form, instructor: value })} placeholder="Dr. Aiko Tanaka" /></div>
+            </div>
+            {error && <p className="mt-3 text-sm font-medium text-rose-600 dark:text-rose-300">{error}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">{t("timetable.cancel")}</button>
+              <button type="submit" className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">{t("timetable.add")}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </main>
   );
 }

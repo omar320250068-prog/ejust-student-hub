@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test tests/sis-parser.test.mjs"
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

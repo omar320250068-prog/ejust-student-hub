@@ -196,7 +196,11 @@ export default function AssistantPage() {
       if (nextQuota) setQuota(nextQuota);
 
       const results = Array.isArray(payload.fused) ? (payload.fused as FusedResult[]) : [];
-      const rows = lookup ? rowsFor(lookup, payload) : [];
+      const rows = lookup
+        ? rowsFor(lookup, payload)
+        : Array.isArray(payload.meetings)
+          ? (payload.meetings as LookupRow[])
+          : [];
 
       setTurns((current) =>
         current.map((item) =>
@@ -364,7 +368,7 @@ export default function AssistantPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold">
-                          {String(row.code ?? row.title ?? row.name ?? t("assistant.rowFallback"))}
+                          {String(row.courseCode ?? row.code ?? row.title ?? row.name ?? t("assistant.rowFallback"))}
                         </p>
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
                           <Database size={11} /> {t("assistant.sourceLive")}

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, like, or, sql, type SQL } from "drizzle-orm";
 import { connection } from "next/server";
 import { db } from "@/db";
 import {
@@ -32,9 +32,9 @@ export interface DbHit {
 const RRF_K = 60;
 const MAX_LIMIT = 20;
 
-function clampLimit(limit: number | undefined, fallback: number): number {
+function clampLimit(limit: number | undefined, fallback: number, max = MAX_LIMIT): number {
   if (!limit || !Number.isFinite(limit)) return fallback;
-  return Math.min(Math.max(Math.trunc(limit), 1), MAX_LIMIT);
+  return Math.min(Math.max(Math.trunc(limit), 1), max);
 }
 
 /**
@@ -258,6 +258,8 @@ export function dbHitsToRetrievedDocs(hits: DbHit[]): RetrievedDoc[] {
 
 export interface CourseMeetingQuery {
   courseCode?: string;
+  columnKey?: string;
+  meetingType?: "LECTURE" | "LAB" | "SECTION" | "TUTORIAL";
   day?: "SUNDAY" | "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "SATURDAY";
   building?: string;
   room?: string;
@@ -272,6 +274,9 @@ export async function findCourseMeetings(query: CourseMeetingQuery = {}) {
 
   const filters: SQL[] = [];
   if (query.courseCode) filters.push(ilike(courses.code, query.courseCode));
+  // The timetable ingest stores `group` as `<columnKey>:<MEETING_TYPE>`.
+  if (query.columnKey) filters.push(like(courseMeetings.group, `${query.columnKey}:%`));
+  if (query.meetingType) filters.push(eq(courseMeetings.meetingType, query.meetingType));
   if (query.day) filters.push(eq(courseMeetings.day, query.day));
   if (query.building) filters.push(ilike(courseMeetings.building, `%${query.building}%`));
   if (query.room) filters.push(ilike(courseMeetings.room, `%${query.room}%`));
@@ -299,8 +304,8 @@ export async function findCourseMeetings(query: CourseMeetingQuery = {}) {
     .from(courseMeetings)
     .innerJoin(courses, eq(courses.id, courseMeetings.courseId))
     .where(filters.length > 0 ? and(...filters) : undefined)
-    .orderBy(courseMeetings.day, courseMeetings.startTime)
-    .limit(clampLimit(query.limit, 20));
+    .orderBy(courseMeetings.day, courseMeetings.startTime, courseMeetings.group)
+    .limit(clampLimit(query.limit, 20, 500));
 }
 
 export interface FacultyOfficeQuery {

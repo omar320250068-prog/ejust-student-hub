@@ -6,12 +6,35 @@ import {
   findCourseMeetings,
   findCourses,
   findFacultyOffice,
+  type CourseMeetingQuery,
 } from "@/lib/rag/db-retriever";
 import { consumeAiQuota } from "@/lib/merit-server";
 import { getViewer } from "@/lib/permissions";
 
 const OFFICE_INTENT = /office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|مكتب|دكتور|د\./i;
-const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR)\b\s*\d{0,3}\b/i;
+const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR|ECE|CSE|ACM)\b\s*\d{0,3}\b/i;
+const COURSE_CODE = /\b([A-Z]{2,5})\s*-?\s*(\d{3})\b/i;
+const SCHEDULE_INTENT = /schedule|timetable|\bclass(?:es)?\b|\blec(?:ture)?s?\b|\blab\b|\btutorial\b|\bwhen\b|\bday\b|جدول|محاضرة|معمل|شعبة|時間割|授業/i;
+
+type ScheduleDay = NonNullable<CourseMeetingQuery["day"]>;
+
+const DAY_PATTERNS: [RegExp, ScheduleDay][] = [
+  [/\b(sat(?:urday)?)\b|السبت|土曜/i, "SATURDAY"],
+  [/\b(sun(?:day)?)\b|الأحد|الاحد|日曜/i, "SUNDAY"],
+  [/\b(mon(?:day)?)\b|الاثنين|الإثنين|月曜/i, "MONDAY"],
+  [/\b(tue(?:s|sday)?)\b|الثلاثاء|火曜/i, "TUESDAY"],
+  [/\b(wed(?:nesday)?)\b|الأربعاء|الاربعاء|水曜/i, "WEDNESDAY"],
+  [/\b(thu(?:r(?:s|rsday)?|rsday)?)\b|الخميس|木曜/i, "THURSDAY"],
+];
+
+function scheduleQuery(query: string): { courseCode?: string; day?: ScheduleDay } | null {
+  if (!SCHEDULE_INTENT.test(query)) return null;
+  const codeMatch = query.match(COURSE_CODE);
+  const day = DAY_PATTERNS.find(([pattern]) => pattern.test(query))?.[1];
+  const courseCode = codeMatch ? `${codeMatch[1].toUpperCase()} ${codeMatch[2]}` : undefined;
+  if (!courseCode && !day) return null;
+  return { courseCode, day };
+}
 
 type OfficeRow = Awaited<ReturnType<typeof findFacultyOffice>>[number];
 type CourseRow = Awaited<ReturnType<typeof findCourses>>[number];
@@ -150,14 +173,23 @@ export async function GET(request: Request) {
 
   const officeName = OFFICE_INTENT.test(query) ? facultyQueryTokens(query).join(" ") : "";
   const courseCode = query.match(COURSE_INTENT)?.[0] ?? "";
+  const schedule = scheduleQuery(query);
 
-  const [fused, officeHits, courseHits] = await Promise.all([
+  const [fused, officeHits, courseHits, scheduleMeetings] = await Promise.all([
     hybridRetrieve(query, 8),
     officeName
       ? findFacultyOffice({ name: officeName, limit: 5 }).catch(() => [])
       : Promise.resolve([]),
     courseCode
       ? findCourses({ query: courseCode, limit: 5 }).catch(() => [])
+      : Promise.resolve([]),
+    schedule
+      ? findCourseMeetings({
+          ...schedule,
+          academicYear: "2026/2027",
+          semester: "Fall",
+          limit: 12,
+        }).catch(() => [])
       : Promise.resolve([]),
   ]);
 
@@ -204,6 +236,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     query,
     quota,
+    lookup: scheduleMeetings.length > 0 ? "schedule" : null,
+    meetings: scheduleMeetings,
     results: fused
       .filter((entry) => !entry.doc.category.startsWith("db:"))
       .map((entry) => ({
