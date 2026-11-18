@@ -4,7 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { courses, studentAcademicRecords } from "@/db/schema";
-import { parseSisText, type SisCourseStatus } from "@/lib/sis-parser";
+import {
+  parseSisDocument,
+  type SisCourseStatus,
+  type SisSummaryMetadata,
+  type SisTableType,
+} from "@/lib/sis-parser";
 import {
   GPA_POINTS,
   GRADUATION_CREDITS,
@@ -81,6 +86,7 @@ interface IncomingCourse {
   grade?: string | null;
   semester?: string | null;
   status?: SisCourseStatus;
+  sections?: string[];
 }
 
 function normalizeCourses(input: IncomingCourse[]): IncomingCourse[] {
@@ -102,6 +108,9 @@ function normalizeCourses(input: IncomingCourse[]): IncomingCourse[] {
       grade,
       semester,
       status: grade ? "completed" : (course.status ?? "registered"),
+      sections: Array.isArray(course.sections)
+        ? course.sections.filter((section) => typeof section === "string")
+        : undefined,
     });
   }
   return result;
@@ -260,11 +269,16 @@ export async function POST(request: NextRequest) {
 
   const dryRun = body.dryRun === true;
   let incoming: IncomingCourse[];
+  let metadata: SisSummaryMetadata | null = null;
+  let tableType: SisTableType = "unknown";
 
   if (Array.isArray(body.courses)) {
     incoming = normalizeCourses(body.courses as IncomingCourse[]);
   } else if (typeof body.rawText === "string") {
-    incoming = normalizeCourses(parseSisText(body.rawText));
+    const parsed = parseSisDocument(body.rawText);
+    incoming = normalizeCourses(parsed.courses);
+    metadata = parsed.metadata;
+    tableType = parsed.tableType;
   } else {
     return NextResponse.json(
       { error: "Provide rawText or courses" },
@@ -286,7 +300,7 @@ export async function POST(request: NextRequest) {
     const enriched = await enrichFromCatalog(incoming, preferOfficial);
 
     if (dryRun) {
-      return NextResponse.json({ courses: enriched });
+      return NextResponse.json({ courses: enriched, metadata, tableType });
     }
 
     const now = new Date();
@@ -328,6 +342,8 @@ export async function POST(request: NextRequest) {
       completedCredits: summary.completedCredits,
       syncToken: createSyncToken(userId),
       syncedAt: now.toISOString(),
+      metadata,
+      tableType,
     });
   } catch (error) {
     console.error("student sync POST failed", error);

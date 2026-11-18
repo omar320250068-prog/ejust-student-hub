@@ -1,4 +1,8 @@
-import type { ParsedSisCourse } from "./sis-parser";
+import type {
+  ParsedSisCourse,
+  SisSummaryMetadata,
+  SisTableType,
+} from "./sis-parser";
 
 /** Standard E-JUST 4.0 grade points. */
 export const GPA_POINTS: Record<string, number> = {
@@ -42,8 +46,13 @@ export interface SyncResponse {
   /** Shown in the guide so the extension can authenticate. */
   syncToken?: string;
   syncedAt?: string;
+  /** Official SIS header values when the pasted text contained them. */
+  metadata?: SisSummaryMetadata | null;
+  tableType?: SisTableType;
 }
 
 export interface SyncPreviewResponse {
   courses: ParsedSisCourse[];
+  metadata?: SisSummaryMetadata | null;
+  tableType?: SisTableType;
 }
