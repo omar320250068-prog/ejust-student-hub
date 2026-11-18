@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
-import type { ParsedSisCourse } from "@/lib/sis-parser";
+import type { ParsedSisCourse, SisSummaryMetadata, SisTableType } from "@/lib/sis-parser";
 import type { SyncedCourse, SyncSummary } from "@/lib/sis-sync";
 
 const STORAGE_KEY = "ejust:sis-sync";
@@ -93,6 +93,7 @@ interface EditableRow {
   creditHours: string;
   grade: string;
   semester: string;
+  sections?: string[];
 }
 
 function toEditableRow(course: ParsedSisCourse | SyncedCourse): EditableRow {
@@ -102,6 +103,7 @@ function toEditableRow(course: ParsedSisCourse | SyncedCourse): EditableRow {
     creditHours: String(course.creditHours ?? 3),
     grade: course.grade ?? "",
     semester: course.semester ?? "",
+    sections: course.sections,
   };
 }
 
@@ -158,6 +160,8 @@ export function SisSyncModal({
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [state, setState] = useState<SisSyncState>(readStoredSync);
   const [copied, setCopied] = useState(false);
+  const [metadata, setMetadata] = useState<SisSummaryMetadata | null>(null);
+  const [tableType, setTableType] = useState<SisTableType>("unknown");
 
   const isArabic = locale === "ar";
 
@@ -202,6 +206,8 @@ export function SisSyncModal({
   async function detect() {
     setBusy(true);
     setMessage(null);
+    setMetadata(null);
+    setTableType("unknown");
     try {
       const response = await fetch(API_URL, {
         method: "POST",
@@ -214,6 +220,8 @@ export function SisSyncModal({
         return;
       }
       const detected: ParsedSisCourse[] = data.courses ?? [];
+      setMetadata(data.metadata ?? null);
+      setTableType(data.tableType ?? "unknown");
       if (detected.length === 0) {
         setMessage({ text: t("sis.noCourses"), ok: false });
         setRows([]);
@@ -385,6 +393,27 @@ export function SisSyncModal({
           </button>
         </div>
 
+        {/* Official SIS header values, available before full transcript rows */}
+        {metadata && (
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-cyan-200 bg-cyan-50/70 px-3 py-2 text-xs text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-100">
+            {metadata.semester && <span className="font-semibold">{metadata.semester}</span>}
+            {metadata.cgpa !== null && (
+              <span>{t("sis.officialCgpa")}: <strong>{metadata.cgpa.toFixed(2)}</strong></span>
+            )}
+            {metadata.passedCredits !== null && (
+              <span>{t("sis.officialPassed")}: <strong>{metadata.passedCredits}</strong></span>
+            )}
+            {metadata.registeredCredits !== null && (
+              <span>{t("sis.officialRegistered")}: <strong>{metadata.registeredCredits}</strong></span>
+            )}
+          </div>
+        )}
+        {tableType === "registered" && (
+          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {t("sis.registeredHint")}
+          </p>
+        )}
+
         {/* Editable preview */}
         <div className="mb-3">
           <div className="mb-1 flex items-center justify-between gap-2">
@@ -413,6 +442,11 @@ export function SisSyncModal({
                     <tr key={`${row.courseCode}-${index}`} className="border-t border-slate-100 dark:border-slate-800">
                       <td className="px-2 py-1.5 font-mono font-semibold text-slate-800 dark:text-slate-100">
                         {row.courseCode}
+                        {row.sections && row.sections.length > 0 && (
+                          <span className="mt-0.5 block text-[10px] font-normal text-slate-400">
+                            {row.sections.join(", ")}
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-1.5">
                         <input
