@@ -315,7 +315,16 @@ export async function findFacultyOffice(query: FacultyOfficeQuery = {}) {
   await connection();
 
   const filters: SQL[] = [];
-  if (query.name) filters.push(ilike(facultyOffices.name, `%${query.name}%`));
+  if (query.name) {
+    const term = `%${query.name}%`;
+    const match = or(
+      ilike(facultyOffices.name, term),
+      ilike(facultyOffices.nameAr, term),
+      ilike(facultyOffices.building, term),
+      ilike(facultyOffices.officeNumber, term)
+    );
+    if (match) filters.push(match);
+  }
   if (query.department) {
     filters.push(ilike(facultyOffices.department, `%${query.department}%`));
   }

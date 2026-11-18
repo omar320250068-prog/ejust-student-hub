@@ -9,6 +9,67 @@ import {
 import { consumeAiQuota } from "@/lib/merit-server";
 import { getViewer } from "@/lib/permissions";
 
+const OFFICE_INTENT = /office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|مكتب|دكتور|د\./i;
+const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR)\b\s*\d{0,3}\b/i;
+
+type OfficeRow = Awaited<ReturnType<typeof findFacultyOffice>>[number];
+type CourseRow = Awaited<ReturnType<typeof findCourses>>[number];
+type LiveFieldKey = "name" | "title" | "department" | "location" | "email" | "officeHours" | "status" | "program" | "level" | "credits" | "description";
+type LiveField = { key: LiveFieldKey; value: string };
+
+interface FusedEntry {
+  id: string;
+  title: string;
+  category: string;
+  sourceType: string;
+  snippet: string;
+  rrf: number;
+  fields?: LiveField[];
+}
+
+function officeTerm(query: string): string {
+  return query
+    .replace(/مكتب|دكتور|أ\.?د\.?|د\.|office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|\bwhere\b|\bis\b|\bthe\b|\?|؟/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function officeFields(row: OfficeRow): LiveField[] {
+  const hours = row.officeHours
+    .map((slot) => `${slot.day} ${slot.start}-${slot.end}`)
+    .join(", ");
+  const fields: LiveField[] = [
+    { key: "name", value: row.nameAr ? `${row.name} / ${row.nameAr}` : row.name },
+    ...(row.title ? [{ key: "title" as const, value: row.title }] : []),
+    { key: "department", value: row.department },
+    { key: "location", value: `${row.building}, ${row.officeNumber}` },
+    ...(row.email ? [{ key: "email" as const, value: row.email }] : []),
+    { key: "officeHours", value: hours || row.officeHoursNote || "—" },
+    { key: "status", value: row.isInOffice ? "yes" : "no" },
+    ...(row.statusNote ? [{ key: "status" as const, value: row.statusNote }] : []),
+  ];
+  return fields.filter((field) => field.value.trim().length > 0);
+}
+
+function courseFields(row: CourseRow): LiveField[] {
+  const fields: LiveField[] = [
+    ...(row.name ? [{ key: "name" as const, value: row.name }] : []),
+    ...(row.nameAr ? [{ key: "name" as const, value: row.nameAr }] : []),
+    { key: "program", value: row.program },
+    ...(row.level !== null ? [{ key: "level" as const, value: String(row.level) }] : []),
+    ...(row.creditHours !== null ? [{ key: "credits" as const, value: String(row.creditHours) }] : []),
+    ...(row.description ? [{ key: "description" as const, value: row.description }] : []),
+  ];
+  return fields.filter((field) => field.value.trim().length > 0);
+}
+
+function cleanSnippet(text: string): string {
+  return text
+    .replace(/^\s*(?:Q|Question|A|Answer|السؤال|الإجابة)\s*[:\-]\s*/gim, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get("q") ?? "").trim().slice(0, 500);
@@ -93,7 +154,57 @@ export async function GET(request: Request) {
     quota = { used: usage.used + 1, limit: usage.quota };
   }
 
-  const fused = await hybridRetrieve(query, 8);
+  const officeName = OFFICE_INTENT.test(query) ? officeTerm(query) : "";
+  const courseCode = query.match(COURSE_INTENT)?.[0] ?? "";
+
+  const [fused, officeHits, courseHits] = await Promise.all([
+    hybridRetrieve(query, 8),
+    officeName
+      ? findFacultyOffice({ name: officeName, limit: 5 }).catch(() => [])
+      : Promise.resolve([]),
+    courseCode
+      ? findCourses({ query: courseCode, limit: 5 }).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const live: FusedEntry[] = [
+    ...officeHits.map((row, index) => ({
+      id: `office:${row.id}`,
+      title: row.nameAr ? `${row.name} / ${row.nameAr}` : row.name,
+      category: "live-db",
+      sourceType: "live-db",
+      snippet: [row.department, `${row.building}, ${row.officeNumber}`].join(" · "),
+      rrf: 100 - index,
+      fields: officeFields(row),
+    })),
+    ...courseHits.map((row, index) => ({
+      id: `course:${row.id}`,
+      title: row.code,
+      category: "live-db",
+      sourceType: "live-db",
+      snippet: row.name ?? row.nameAr ?? "",
+      rrf: 90 - index,
+      fields: courseFields(row),
+    })),
+  ];
+
+  const ranked: FusedEntry[] = fused.map((entry) => ({
+    id: entry.doc.id,
+    title: entry.doc.title,
+    category: entry.doc.category,
+    sourceType: entry.doc.category.startsWith("db:")
+      ? entry.doc.category.slice(3)
+      : "static",
+    snippet: cleanSnippet(entry.doc.text).slice(0, 2000),
+    rrf: Number(entry.score.toFixed(3)),
+  }));
+
+  const seen = new Set(live.map((entry) => entry.id));
+  const combined = [
+    ...live,
+    ...ranked.filter((entry) => !seen.has(entry.id)),
+  ];
+
   return NextResponse.json({
     query,
     quota,
@@ -114,15 +225,6 @@ export async function GET(request: Request) {
         sourceType: entry.doc.category.slice(3),
         score: Number(entry.score.toFixed(3)),
       })),
-    fused: fused.map((entry) => ({
-      id: entry.doc.id,
-      title: entry.doc.title,
-      category: entry.doc.category,
-      sourceType: entry.doc.category.startsWith("db:")
-        ? entry.doc.category.slice(3)
-        : "static",
-      snippet: entry.doc.text.replace(/\s+/g, " ").trim().slice(0, 320),
-      rrf: Number(entry.score.toFixed(3)),
-    })),
+    fused: combined,
   });
 }

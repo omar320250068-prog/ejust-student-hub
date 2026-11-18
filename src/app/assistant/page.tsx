@@ -17,6 +17,15 @@ import {
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 
+type LiveFieldKey =
+  | "name" | "title" | "department" | "location" | "email" | "officeHours"
+  | "status" | "program" | "level" | "credits" | "description";
+
+interface LiveField {
+  key: LiveFieldKey;
+  value: string;
+}
+
 interface FusedResult {
   id: string;
   title: string;
@@ -24,7 +33,24 @@ interface FusedResult {
   sourceType: string;
   snippet?: string;
   rrf: number;
+  fields?: LiveField[];
 }
+
+const PREVIEW_LENGTH = 240;
+
+const FIELD_KEY: Record<LiveFieldKey, TranslationKey> = {
+  name: "assistant.fieldName",
+  title: "assistant.fieldTitle",
+  department: "assistant.fieldDepartment",
+  location: "assistant.fieldLocation",
+  email: "assistant.fieldEmail",
+  officeHours: "assistant.fieldOfficeHours",
+  status: "assistant.fieldStatus",
+  program: "assistant.fieldProgram",
+  level: "assistant.fieldLevel",
+  credits: "assistant.fieldCredits",
+  description: "assistant.fieldDescription",
+};
 
 interface LookupRow {
   [key: string]: unknown;
@@ -91,6 +117,11 @@ const SOURCE_BADGE: Record<string, { key: TranslationKey; tone: string; icon: ty
     tone: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
     icon: Database,
   },
+  "live-db": {
+    key: "assistant.sourceLive",
+    tone: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+    icon: Database,
+  },
 };
 
 function rowsFor(lookup: LookupKind, payload: Record<string, unknown>): LookupRow[] {
@@ -106,6 +137,7 @@ export default function AssistantPage() {
   const [lookup, setLookup] = useState<LookupKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const turnSeq = useRef(0);
 
@@ -273,6 +305,11 @@ export default function AssistantPage() {
                   {turn.results.map((result, index) => {
                     const badge = SOURCE_BADGE[result.sourceType] ?? SOURCE_BADGE.static;
                     const Icon = badge.icon;
+                    const cardId = `${turn.id}:${result.id}`;
+                    const snippet = result.snippet ?? "";
+                    const isLong = snippet.length > PREVIEW_LENGTH;
+                    const isOpen = expanded[cardId] ?? false;
+                    const shown = isOpen || !isLong ? snippet : `${snippet.slice(0, PREVIEW_LENGTH).trimEnd()}…`;
                     return (
                       <article
                         key={result.id}
@@ -288,11 +325,32 @@ export default function AssistantPage() {
                             <Icon size={11} /> {t(badge.key)}
                           </span>
                         </div>
-                        {result.snippet && (
-                          <p className="mt-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                            {result.snippet}
-                            {result.snippet.length >= 320 ? "…" : ""}
-                          </p>
+                        {snippet && (
+                          <p className="mt-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">{shown}</p>
+                        )}
+                        {result.fields && result.fields.length > 0 && (
+                          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+                            {result.fields.map((field, fieldIndex) => (
+                              <div key={`${field.key}-${fieldIndex}`} className="flex min-w-0 gap-1">
+                                <dt className="font-semibold text-slate-500 dark:text-slate-400">{t(FIELD_KEY[field.key])}:</dt>
+                                <dd className="min-w-0 break-words">
+                                  {field.key === "status" && (field.value === "yes" || field.value === "no")
+                                    ? t(field.value === "yes" ? "assistant.fieldYes" : "assistant.fieldNo")
+                                    : field.value}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                        {isLong && (
+                          <button
+                            type="button"
+                            aria-expanded={isOpen}
+                            onClick={() => setExpanded((current) => ({ ...current, [cardId]: !isOpen }))}
+                            className="mt-1.5 text-[11px] font-semibold text-cyan-700 underline-offset-2 transition hover:underline dark:text-cyan-300"
+                          >
+                            {isOpen ? t("assistant.showLess") : t("assistant.showMore")}
+                          </button>
                         )}
                       </article>
                     );

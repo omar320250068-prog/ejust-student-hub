@@ -41,14 +41,17 @@ export default function TopNav() {
   ];
 
   return (
-    <header className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white/90 px-4 backdrop-blur-md print:hidden dark:border-slate-800 dark:bg-slate-950/85">
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="text-sm font-bold text-gray-900 dark:text-white">EJUST Student Hub</span>
+    <header className="relative z-20 flex shrink-0 flex-wrap items-center border-b border-gray-200 bg-white/90 px-4 backdrop-blur-md print:hidden dark:border-slate-800 dark:bg-slate-950/85 sm:h-12 sm:flex-nowrap sm:gap-3">
+      <div className="order-1 flex h-12 shrink-0 items-center gap-2 sm:order-none sm:h-auto">
+        <span className="text-sm font-bold text-gray-900 dark:text-white">
+          <span className="sm:hidden">EJUST</span>
+          <span className="hidden sm:inline">EJUST Student Hub</span>
+        </span>
         <span className="hidden text-xs text-gray-400 dark:text-slate-500 lg:inline">
           Egypt-Japan University of Science &amp; Technology
         </span>
       </div>
-      <nav className="flex gap-1 overflow-x-auto">
+      <nav aria-label={t("nav.menu")} className="order-3 -mx-4 flex w-full min-w-0 gap-1 overflow-x-auto border-t border-gray-200 px-4 py-1.5 dark:border-slate-800 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:py-0">
         {links.map(({ href, key, icon: Icon }) => {
           const label = t(`nav.${key}`);
           const active = pathname === href;
@@ -56,6 +59,7 @@ export default function TopNav() {
             <Link
               key={href}
               href={href}
+              aria-label={label}
               className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
                 active
                   ? "bg-blue-50 text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
@@ -68,7 +72,7 @@ export default function TopNav() {
           );
         })}
       </nav>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="order-2 ml-auto flex h-12 shrink-0 items-center gap-2 sm:order-none sm:ml-0 sm:h-auto">
         <LanguageSelector />
         <ThemeToggle />
         {status === "loading" && (
@@ -77,10 +81,11 @@ export default function TopNav() {
         {status === "unauthenticated" && (
           <Link
             href="/login"
+            aria-label={t("nav.signIn")}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
           >
             <LogIn size={15} />
-            {t("nav.signIn")}
+            <span className="hidden sm:inline">{t("nav.signIn")}</span>
           </Link>
         )}
         {status === "authenticated" && session?.user && (
@@ -101,10 +106,11 @@ export default function TopNav() {
             </span>
             <button
               onClick={() => signOut()}
+              aria-label={t("nav.signOut")}
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               <LogOut size={15} />
-              {t("nav.signOut")}
+              <span className="hidden sm:inline">{t("nav.signOut")}</span>
             </button>
           </div>
         )}
