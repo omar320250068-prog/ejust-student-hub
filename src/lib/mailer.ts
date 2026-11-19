@@ -1,16 +1,16 @@
 /**
  * Outbound mail for email verification.
  *
- * Provider order: Gmail API -> Resend -> SMTP. Gmail is preferred whenever all
- * three OAuth variables are configured, so student-domain recipients are not
- * limited by the Resend sandbox. In development, when no provider is configured
- * we log the code instead of failing so signup remains testable. In production,
- * with no working provider, callers get an explicit failure and should respond
- * 503 rather than silently "sending" a code nobody received.
+ * Provider order: SMTP -> Gmail API -> Resend. SMTP is preferred whenever
+ * SMTP_HOST and EMAIL_FROM are configured, so any student-domain recipient can
+ * receive a code without the Resend sandbox restriction. Gmail API and Resend
+ * remain as fallbacks. In development, when no provider is configured we log
+ * the code instead of failing so signup remains testable. In production, with
+ * no working provider, callers get an explicit failure and should respond 503
+ * rather than silently "sending" a code nobody received.
  */
 import { randomUUID } from "node:crypto";
-import net from "node:net";
-import tls from "node:tls";
+import nodemailer from "nodemailer";
 
 export type MailResult =
   | { ok: true; provider: "resend" | "smtp" | "gmail" | "dev" }
@@ -34,13 +34,6 @@ function htmlBody(code: string): string {
     `<p>It expires in 10 minutes. If you did not request it, you can ignore this email.</p>` +
     `</div>`
   );
-}
-
-function fromAddress(): string {
-  const raw = process.env.EMAIL_FROM?.trim();
-  if (!raw) return "";
-  const match = raw.match(/<([^>]+)>/);
-  return (match ? match[1] : raw).trim();
 }
 
 /** RFC 2047 encode non-ASCII header values (e.g. an Arabic display name). */
@@ -149,156 +142,47 @@ interface SmtpConfig {
 
 function smtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST?.trim();
-  const from = fromAddress();
+  const from = process.env.EMAIL_FROM?.trim();
   if (!host || !from) return null;
-  const secure = process.env.SMTP_SECURE === "true";
-  const port = Number(process.env.SMTP_PORT || (secure ? 465 : 587));
+  const port = Number(process.env.SMTP_PORT || "587");
   if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  // Port 465 is implicit TLS; other ports use STARTTLS when offered.
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
   return {
     host,
     port,
     secure,
     from,
     user: process.env.SMTP_USER?.trim() || undefined,
-    password: process.env.SMTP_PASSWORD || undefined,
+    password:
+      process.env.SMTP_PASS?.trim() || process.env.SMTP_PASSWORD?.trim() || undefined,
   };
 }
 
-class LineReader {
-  private buffer = "";
-  private queue: string[] = [];
-  private waiters: Array<(line: string) => void> = [];
-  private socket: net.Socket | tls.TLSSocket | null = null;
-
-  private readonly onData = (chunk: Buffer) => {
-    this.buffer += chunk.toString("utf8");
-    let index: number;
-    while ((index = this.buffer.indexOf("\r\n")) !== -1) {
-      const line = this.buffer.slice(0, index);
-      this.buffer = this.buffer.slice(index + 2);
-      const waiter = this.waiters.shift();
-      if (waiter) waiter(line);
-      else this.queue.push(line);
-    }
-  };
-
-  attach(socket: net.Socket | tls.TLSSocket): void {
-    this.socket = socket;
-    socket.on("data", this.onData);
-  }
-
-  detach(): void {
-    this.socket?.off("data", this.onData);
-    this.socket = null;
-  }
-
-  next(): Promise<string> {
-    const queued = this.queue.shift();
-    if (queued !== undefined) return Promise.resolve(queued);
-    return new Promise((resolve) => this.waiters.push(resolve));
-  }
-}
-
-async function readReply(reader: LineReader): Promise<string[]> {
-  const lines: string[] = [];
-  for (;;) {
-    const line = await withTimeout(reader.next(), "SMTP reply timed out");
-    lines.push(line);
-    if (line.length < 4 || line[3] !== "-") return lines;
-  }
-}
-
-function expect(lines: string[], code: string, step: string): void {
-  const actual = lines.at(-1)?.slice(0, 3) ?? "";
-  if (actual !== code) {
-    throw new Error(`SMTP ${step}: expected ${code}, got ${lines.join(" | ")}`);
-  }
-}
-
-function waitForConnect(socket: net.Socket | tls.TLSSocket, event: string): Promise<void> {
-  return withTimeout(
-    new Promise<void>((resolve, reject) => {
-      const onOpen = () => { cleanup(); resolve(); };
-      const onError = (error: Error) => { cleanup(); reject(error); };
-      const cleanup = () => {
-        socket.off(event, onOpen);
-        socket.off("error", onError);
-      };
-      socket.once(event, onOpen);
-      socket.once("error", onError);
-    }),
-    "SMTP connection timed out"
-  );
-}
-
-/** Minimal SMTP client (implicit TLS, STARTTLS and AUTH LOGIN) — no dependency. */
 async function sendViaSmtp(cfg: SmtpConfig, to: string, code: string): Promise<void> {
-  const initial: net.Socket | tls.TLSSocket = cfg.secure
-    ? tls.connect({ host: cfg.host, port: cfg.port, servername: cfg.host })
-    : net.connect({ host: cfg.host, port: cfg.port });
-  let current: net.Socket | tls.TLSSocket = initial;
-  const reader = new LineReader();
-  reader.attach(initial);
-  const write = (line: string) => current.write(`${line}\r\n`);
+  const transport = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    ...(cfg.user && cfg.password ? { auth: { user: cfg.user, pass: cfg.password } } : {}),
+    connectionTimeout: MAIL_TIMEOUT_MS,
+    greetingTimeout: MAIL_TIMEOUT_MS,
+    socketTimeout: MAIL_TIMEOUT_MS,
+  });
 
   try {
-    await waitForConnect(initial, cfg.secure ? "secureConnect" : "connect");
-    expect(await readReply(reader), "220", "greeting");
-
-    const ehlo = async (): Promise<string[]> => {
-      write("EHLO localhost");
-      const lines = await readReply(reader);
-      expect(lines, "250", "EHLO");
-      return lines.map((line) => line.slice(4).toUpperCase());
-    };
-
-    let extensions = await ehlo();
-    if (!cfg.secure && extensions.some((line) => line.startsWith("STARTTLS"))) {
-      write("STARTTLS");
-      expect(await readReply(reader), "220", "STARTTLS");
-      reader.detach();
-      const upgraded = tls.connect({ socket: initial, servername: cfg.host });
-      await waitForConnect(upgraded, "secureConnect");
-      reader.attach(upgraded);
-      current = upgraded;
-      extensions = await ehlo();
-    }
-
-    if (cfg.user && cfg.password) {
-      write("AUTH LOGIN");
-      expect(await readReply(reader), "334", "AUTH LOGIN");
-      write(Buffer.from(cfg.user).toString("base64"));
-      expect(await readReply(reader), "334", "AUTH user");
-      write(Buffer.from(cfg.password).toString("base64"));
-      expect(await readReply(reader), "235", "AUTH password");
-    }
-    void extensions;
-
-    write(`MAIL FROM:<${cfg.from}>`);
-    expect(await readReply(reader), "250", "MAIL FROM");
-    write(`RCPT TO:<${to}>`);
-    const rcpt = (await readReply(reader)).at(-1)?.slice(0, 3);
-    if (rcpt !== "250" && rcpt !== "251") throw new Error(`SMTP RCPT TO: ${rcpt}`);
-    write("DATA");
-    expect(await readReply(reader), "354", "DATA");
-    current.write(
-      [
-        `From: ${cfg.from}`,
-        `To: ${to}`,
-        `Subject: ${SUBJECT}`,
-        "MIME-Version: 1.0",
-        "Content-Type: text/plain; charset=UTF-8",
-        "",
-        textBody(code),
-        ".",
-        "",
-      ].join("\r\n")
+    await withTimeout(
+      transport.sendMail({
+        from: cfg.from,
+        to,
+        subject: SUBJECT,
+        text: textBody(code),
+        html: htmlBody(code),
+      }),
+      "SMTP send timed out"
     );
-    expect(await readReply(reader), "250", "message body");
-    write("QUIT");
   } finally {
-    reader.detach();
-    current.destroy();
+    transport.close();
   }
 }
 
@@ -356,9 +240,23 @@ async function sendViaGmail(to: string, code: string): Promise<void> {
 export async function sendVerificationEmail(email: string, code: string): Promise<MailResult> {
   const failures: string[] = [];
 
+  const smtp = smtpConfig();
+  if (smtp) {
+    try {
+      await sendViaSmtp(smtp, email, code);
+      console.info("[mailer] OTP delivered via smtp");
+      return { ok: true, provider: "smtp" };
+    } catch (error) {
+      const message = (error as Error).message;
+      failures.push(`smtp: ${message}`);
+      console.warn(`[mailer] smtp failed: ${message}`);
+    }
+  }
+
   if (gmailConfigured()) {
     try {
       await sendViaGmail(email, code);
+      console.info("[mailer] OTP delivered via gmail");
       return { ok: true, provider: "gmail" };
     } catch (error) {
       const message = (error as Error).message;
@@ -370,23 +268,12 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   if (process.env.RESEND_API_KEY?.trim()) {
     try {
       await sendViaResend(email, code);
+      console.info("[mailer] OTP delivered via resend");
       return { ok: true, provider: "resend" };
     } catch (error) {
       const message = (error as Error).message;
       failures.push(`resend: ${message}`);
       console.warn(`[mailer] resend failed: ${message}`);
-    }
-  }
-
-  const smtp = smtpConfig();
-  if (smtp) {
-    try {
-      await sendViaSmtp(smtp, email, code);
-      return { ok: true, provider: "smtp" };
-    } catch (error) {
-      const message = (error as Error).message;
-      failures.push(`smtp: ${message}`);
-      console.warn(`[mailer] smtp failed: ${message}`);
     }
   }
 
