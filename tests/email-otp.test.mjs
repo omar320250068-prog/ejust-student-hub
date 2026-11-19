@@ -5,6 +5,7 @@ import {
   OTP_MAX_ATTEMPTS,
   OTP_RESEND_COOLDOWN_MS,
   canSubmitOtpAttempt,
+  detectAccountTypeFromEmail,
   generateOtpCode,
   hashOtpCode,
   isOtpExpired,
@@ -37,6 +38,47 @@ test("validateEjustEmail distinguishes malformed addresses from non-E-JUST ones"
 
 test("normalizeEjustEmail trims and lowercases", () => {
   assert.equal(normalizeEjustEmail("  Name@Student.EJUST.edu.eg "), "name@student.ejust.edu.eg");
+});
+
+test("detectAccountTypeFromEmail routes student and staff E-JUST addresses", () => {
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed@student.ejust.edu.eg"), {
+    role: "STUDENT", studentId: null,
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("  AHMED@Student.EJUST.edu.eg "), {
+    role: "STUDENT", studentId: null,
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed.123456@ejust.edu.eg"), {
+    role: "STUDENT", studentId: "123456",
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed.hindawy.202400123@ejust.edu.eg"), {
+    role: "STUDENT", studentId: "202400123",
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed.123456@student.ejust.edu.eg"), {
+    role: "STUDENT", studentId: "123456",
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed.hindawy@ejust.edu.eg"), {
+    role: "TA", studentId: null,
+  });
+  assert.deepEqual(detectAccountTypeFromEmail("ahmed.el-sayed@ejust.edu.eg"), {
+    role: "TA", studentId: null,
+  });
+});
+
+test("detectAccountTypeFromEmail defaults to STUDENT for ambiguous input", () => {
+  for (const value of [
+    "ahmed.12345@ejust.edu.eg",
+    "ahmed@ejust.edu.eg",
+    "ahmed.surname@student.ejust.edu.eg",
+    "someone@gmail.com",
+    "ahmed.123456@not-ejust.edu.eg",
+    "",
+    null,
+    42,
+  ]) {
+    assert.deepEqual(detectAccountTypeFromEmail(value), {
+      role: "STUDENT", studentId: null,
+    }, String(value));
+  }
 });
 
 test("isOtpFormat only accepts six digits", () => {

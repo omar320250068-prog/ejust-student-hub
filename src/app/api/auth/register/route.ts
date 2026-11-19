@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { authErrorMessage, type AuthErrorCode } from "@/lib/auth-messages";
-import { validateEjustEmail } from "@/lib/email-otp";
+import { detectAccountTypeFromEmail, validateEjustEmail } from "@/lib/email-otp";
 import { ensureGrandfathered, issueOtp } from "@/lib/email-otp-store";
 import { sendVerificationEmail } from "@/lib/mailer";
 
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const detected = detectAccountTypeFromEmail(normalizedEmail);
 
   try {
     // Accounts created before this one-time migration are already verified.
@@ -72,13 +73,28 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     // No emailVerified value: the account stays unverified until OTP success.
+    // Detected TAs are queued for admin review; the email string alone never
+    // grants staff privileges (taStatus must reach APPROVED first).
     const [created] = await db
       .insert(users)
-      .values({ name: name.trim(), email: normalizedEmail, passwordHash })
-      .returning({ id: users.id, email: users.email });
+      .values({
+        name: name.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        role: detected.role,
+        taStatus: detected.role === "TA" ? "PENDING" : "NONE",
+        ...(detected.role === "TA" ? { taAppliedAt: new Date() } : {}),
+      })
+      .returning({ id: users.id, email: users.email, role: users.role, taStatus: users.taStatus });
 
     return NextResponse.json(
-      { ok: true, email: created.email, userId: created.id },
+      {
+        ok: true,
+        email: created.email,
+        userId: created.id,
+        role: created.role,
+        taStatus: created.taStatus,
+      },
       { status: 201 }
     );
   } catch (error) {

@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  ArrowLeft, ArrowRight, Check, ClipboardPaste, ExternalLink, GraduationCap, Loader2, Sparkles, X,
+  ArrowLeft, ArrowRight, BadgeCheck, Check, ClipboardPaste, ExternalLink, GraduationCap,
+  Loader2, Plus, Sparkles, Trash2, X,
 } from "lucide-react";
+import { detectAccountTypeFromEmail } from "@/lib/email-otp";
 import { useLanguage } from "@/lib/i18n";
 import {
   persistSisSyncState,
@@ -21,14 +23,19 @@ import {
   SECTIONS,
   isOnboardingDismissed,
   markOnboardingDismissed,
+  normalizeCourseCode,
   readAcademicProfile,
+  readTaProfile,
   saveAcademicProfile,
+  saveTaProfile,
   shouldShowOnboarding,
   type AcademicProfile,
   type OnboardingFaculty,
+  type TaProfile,
 } from "@/lib/onboarding";
 
 const PROFILE_FEATURE = "academic-profile";
+const TA_PROFILE_FEATURE = "ta-profile";
 const EXTENSION_URL = "/downloads/ejust-hub-sync-extension.zip";
 const SIS_URL = "https://sis.ejust.edu.eg";
 
@@ -38,6 +45,12 @@ const DEFAULT_PROFILE: AcademicProfile = {
   group: "1",
   track: "CSC",
   section: "1",
+};
+
+const DEFAULT_TA_PROFILE: TaProfile = {
+  faculty: "CSIT",
+  track: "CSC",
+  courseCodes: [],
 };
 
 const selectClass =
@@ -70,10 +83,20 @@ export default function OnboardingWizard() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<0 | 1>(0);
   const [draft, setDraft] = useState<AcademicProfile>(DEFAULT_PROFILE);
+  const [taDraft, setTaDraft] = useState<TaProfile>(DEFAULT_TA_PROFILE);
+  const [courseInput, setCourseInput] = useState("");
   const [paste, setPaste] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [taRequest, setTaRequest] = useState<{
+    state: "idle" | "busy" | "done" | "error";
+    message: string | null;
+  }>({ state: "idle", message: null });
   const userId = session?.user?.id;
+  const isTa = session?.user?.role === "TA";
+  const taStatus = session?.user?.taStatus;
+  const detection = detectAccountTypeFromEmail(session?.user?.email ?? "");
+  const detectedStudentId = detection.role === "STUDENT" ? detection.studentId : null;
   const isRtl = locale === "ar";
   const NextIcon = isRtl ? ArrowLeft : ArrowRight;
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
@@ -98,6 +121,24 @@ export default function OnboardingWizard() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [status, userId, welcomeRequested]);
+
+  /** Prefill role-specific state once the session email is available. */
+  useEffect(() => {
+    if (status !== "authenticated" || !userId) return;
+    // Defer storage reads so the effect synchronizes with localStorage rather
+    // than synchronously updating state during render.
+    const timer = window.setTimeout(() => {
+      const savedTa = readTaProfile();
+      if (savedTa) setTaDraft(savedTa);
+      if (detectedStudentId) {
+        setDraft((current) => ({
+          ...current,
+          studentId: current.studentId ?? readAcademicProfile()?.studentId ?? detectedStudentId,
+        }));
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [status, userId, detectedStudentId]);
 
   /** Drop only the `welcome` flag, preserving any other query parameters. */
   const clearWelcomeParam = useCallback(() => {
@@ -136,6 +177,65 @@ export default function OnboardingWizard() {
       });
     }
   }, [draft, status]);
+
+  /** TA profile is mirrored separately; it has no study year or section. */
+  const commitTaProfile = useCallback(() => {
+    const saved = saveTaProfile(taDraft);
+    if (status === "authenticated") {
+      void fetch("/api/user-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feature: TA_PROFILE_FEATURE, data: saved }),
+      }).catch(() => {
+        // The mirror is best-effort; localStorage remains authoritative here.
+      });
+    }
+  }, [taDraft, status]);
+
+  function addTaCourse() {
+    const code = normalizeCourseCode(courseInput);
+    if (!code) {
+      setMessage({ text: t("onboarding.error"), ok: false });
+      return;
+    }
+    setTaDraft((current) => {
+      const key = code.replace(/[\s-]/g, "");
+      if (current.courseCodes.some((item) => item.replace(/[\s-]/g, "") === key)) {
+        return current;
+      }
+      return { ...current, courseCodes: [...current.courseCodes, code] };
+    });
+    setCourseInput("");
+    setMessage(null);
+  }
+
+  function removeTaCourse(code: string) {
+    setTaDraft((current) => ({
+      ...current,
+      courseCodes: current.courseCodes.filter((item) => item !== code),
+    }));
+  }
+
+  /** Students with a numeric university ID can enter the existing TA review queue. */
+  async function requestTaReview() {
+    if (!detectedStudentId) return;
+    setTaRequest({ state: "busy", message: null });
+    try {
+      const response = await fetch("/api/ta/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: `University ID ${detectedStudentId}` }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error ?? t("onboarding.taReviewFailed"));
+      setTaRequest({ state: "done", message: null });
+    } catch (cause) {
+      setTaRequest({
+        state: "error",
+        message: cause instanceof Error ? cause.message : t("onboarding.taReviewFailed"),
+      });
+    }
+  }
 
   async function importCourses() {
     if (paste.trim().length < 20) {
@@ -194,9 +294,11 @@ export default function OnboardingWizard() {
             </span>
             <div>
               <h2 id="onboarding-title" className="text-lg font-semibold text-slate-900 dark:text-white">
-                {t("onboarding.welcome")}
+                {t(isTa ? "onboarding.taWelcome" : "onboarding.welcome")}
               </h2>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t("onboarding.subtitle")}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {t(isTa ? "onboarding.taSubtitle" : "onboarding.subtitle")}
+              </p>
             </div>
           </div>
           <button
@@ -219,10 +321,65 @@ export default function OnboardingWizard() {
             <span className={`grid size-5 place-items-center rounded-full ${step === 1 ? "bg-cyan-600 text-white" : "bg-cyan-100 dark:bg-cyan-900"}`}>
               2
             </span>
-            {t("onboarding.stepImport")}
+            {t(isTa ? "onboarding.stepCourses" : "onboarding.stepImport")}
           </div>
 
           {step === 0 ? (
+            isTa ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {t("onboarding.faculty")}
+                  </span>
+                  <select
+                    value={taDraft.faculty}
+                    onChange={(event) => {
+                      const faculty = event.target.value as OnboardingFaculty;
+                      setTaDraft((current) => {
+                        const presets = DEPARTMENTS_BY_FACULTY[faculty] as readonly string[];
+                        const track = presets.includes(current.track)
+                          ? current.track
+                          : presets[0];
+                        return { ...current, faculty, track: track as TaProfile["track"] };
+                      });
+                    }}
+                    className={selectClass}
+                  >
+                    {ONBOARDING_FACULTIES.map((faculty) => (
+                      <option key={faculty} value={faculty}>
+                        {faculty} — {t(FACULTY_LABEL_KEY[faculty])}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {t("onboarding.track")}
+                  </span>
+                  <select
+                    value={taDraft.track}
+                    onChange={(event) =>
+                      setTaDraft((current) => ({
+                        ...current,
+                        track: event.target.value as TaProfile["track"],
+                      }))
+                    }
+                    className={selectClass}
+                  >
+                    {DEPARTMENTS_BY_FACULTY[taDraft.faculty].map((track) => (
+                      <option key={track} value={track}>
+                        {track} — {t(FACULTY_LABEL_KEY[taDraft.faculty])}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <p className="sm:col-span-2 rounded-xl bg-cyan-50 p-3 text-xs text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                  {t("onboarding.profileHint")}
+                </p>
+              </div>
+            ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -313,9 +470,135 @@ export default function OnboardingWizard() {
                 </select>
               </label>
 
+              {detectedStudentId && (
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {t("onboarding.studentId")}
+                  </span>
+                  <input
+                    value={draft.studentId ?? detectedStudentId}
+                    readOnly
+                    className={`${selectClass} cursor-default bg-slate-50 font-mono dark:bg-slate-800/60`}
+                  />
+                </label>
+              )}
+
               <p className="sm:col-span-2 rounded-xl bg-cyan-50 p-3 text-xs text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
                 {t("onboarding.profileHint")}
               </p>
+
+              {detectedStudentId && (
+                <div className="sm:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50/60 p-3 dark:border-cyan-900 dark:bg-cyan-950/30">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-cyan-900 dark:text-cyan-100">
+                        {t("onboarding.taReviewTitle")}
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-cyan-800/80 dark:text-cyan-200/80">
+                        {t("onboarding.taReviewHint")}
+                      </p>
+                    </div>
+                    {taStatus === "APPROVED" ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                        <BadgeCheck size={13} />
+                        {t("onboarding.taReviewApproved")}
+                      </span>
+                    ) : taStatus === "PENDING" || taRequest.state === "done" ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                        <Loader2 size={13} />
+                        {t("onboarding.taReviewPending")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void requestTaReview()}
+                        disabled={taRequest.state === "busy"}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {taRequest.state === "busy" ? <Loader2 size={13} className="animate-spin" /> : <BadgeCheck size={13} />}
+                        {t("onboarding.taReviewCta")}
+                      </button>
+                    )}
+                  </div>
+                  {taRequest.message && (
+                    <p role="status" className="mt-2 text-[11px] text-rose-600 dark:text-rose-300">
+                      {taRequest.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            )
+          ) : isTa ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                  <Sparkles size={15} className="text-cyan-500" />
+                  {t("onboarding.taCoursesTitle")}
+                </h3>
+                <p className="mt-1.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  {t("onboarding.taCoursesHint")}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={courseInput}
+                  onChange={(event) => setCourseInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addTaCourse();
+                    }
+                  }}
+                  placeholder={t("onboarding.coursePlaceholder")}
+                  className={selectClass}
+                />
+                <button
+                  type="button"
+                  onClick={addTaCourse}
+                  disabled={!courseInput.trim()}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-cyan-200 px-3 py-2.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-cyan-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
+                >
+                  <Plus size={14} />
+                  {t("onboarding.addCourse")}
+                </button>
+              </div>
+              {message && (
+                <p
+                  role="status"
+                  className={`rounded-xl p-3 text-xs ${message.ok ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"}`}
+                >
+                  {message.text}
+                </p>
+              )}
+              {taDraft.courseCodes.length === 0 ? (
+                <p className="text-xs text-slate-400">{t("onboarding.noCourses")}</p>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  {taDraft.courseCodes.map((code) => (
+                    <li
+                      key={code}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-50 px-2.5 py-1.5 text-xs font-semibold text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200"
+                    >
+                      {code}
+                      <button
+                        type="button"
+                        onClick={() => removeTaCourse(code)}
+                        aria-label={`${t("onboarding.removeCourse")} ${code}`}
+                        className="rounded p-0.5 text-cyan-600 transition hover:bg-cyan-100 hover:text-rose-600 dark:text-cyan-300 dark:hover:bg-cyan-900"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {taStatus === "PENDING" && (
+                <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  {t("onboarding.taPendingNote")}
+                </p>
+              )}
+              <p className="text-xs text-slate-400">{t("onboarding.maybeLater")}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -377,7 +660,8 @@ export default function OnboardingWizard() {
             <button
               type="button"
               onClick={() => {
-                commitProfile();
+                if (isTa) commitTaProfile();
+                else commitProfile();
                 setMessage(null);
                 setStep(1);
               }}
@@ -386,6 +670,31 @@ export default function OnboardingWizard() {
               {t("onboarding.next")}
               <NextIcon size={14} />
             </button>
+          ) : isTa ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  commitTaProfile();
+                  setMessage({ text: t("onboarding.saved"), ok: true });
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 px-3 py-2.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
+              >
+                <Check size={14} />
+                {t("onboarding.save")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  commitTaProfile();
+                  dismiss();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-cyan-700"
+              >
+                <Check size={14} />
+                {t("onboarding.finish")}
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button

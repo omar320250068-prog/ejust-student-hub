@@ -37,6 +37,45 @@ export function normalizeEjustEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** Default account type inferred from an E-JUST address, plus its numeric ID. */
+export interface EmailRoleDetection {
+  role: "STUDENT" | "TA";
+  /** Numeric university ID embedded in the local part, when present. */
+  studentId: string | null;
+}
+
+const LOCAL_NUMERIC_ID = /^[^@]+\.(\d{6,})$/;
+const LOCAL_ALPHA_SURNAME = /^[^@]+\.[a-z-]+$/;
+
+/**
+ * Route a verified E-JUST address to a default account type:
+ * - `@student.ejust.edu.eg` → STUDENT
+ * - `<name>.<6+ digits>@ejust.edu.eg` → STUDENT, with those digits as the ID
+ * - `<name>.<letters>@ejust.edu.eg` → TA (staff address)
+ *
+ * This is a routing default, never an authorization grant: detected TAs are
+ * created with `taStatus = PENDING`, so an admin must still approve staff
+ * access. Email strings are spoofable and must not unlock staff tools alone.
+ */
+export function detectAccountTypeFromEmail(value: unknown): EmailRoleDetection {
+  if (typeof value !== "string") return { role: "STUDENT", studentId: null };
+  const email = normalizeEjustEmail(value);
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return { role: "STUDENT", studentId: null };
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  if (domain !== "ejust.edu.eg" && domain !== "student.ejust.edu.eg") {
+    return { role: "STUDENT", studentId: null };
+  }
+
+  const numeric = LOCAL_NUMERIC_ID.exec(local);
+  if (numeric) return { role: "STUDENT", studentId: numeric[1] ?? null };
+  if (domain === "ejust.edu.eg" && LOCAL_ALPHA_SURNAME.test(local)) {
+    return { role: "TA", studentId: null };
+  }
+  return { role: "STUDENT", studentId: null };
+}
+
 export function isOtpFormat(value: unknown): value is string {
   return typeof value === "string" && OTP_SHAPE.test(value);
 }

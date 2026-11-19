@@ -8,6 +8,8 @@ import {
   clearOnboardingDismissed,
   dismissalKey,
   normalizeAcademicProfile,
+  normalizeCourseCode,
+  normalizeTaProfile,
   shouldShowOnboarding,
   toTimetableFaculty,
   toTimetableGroup,
@@ -82,6 +84,42 @@ test("normalizeAcademicProfile rejects unusable profiles", () => {
   }
   // Unknown tracks are safe to default rather than discard the whole profile.
   assert.equal(normalizeAcademicProfile({ ...VALID, track: "XYZ" }).track, "General");
+});
+
+test("normalizeAcademicProfile keeps an email-derived university ID", () => {
+  assert.deepEqual(normalizeAcademicProfile({ ...VALID, studentId: "202400123" }), {
+    ...VALID, studentId: "202400123",
+  });
+  assert.equal(normalizeAcademicProfile({ ...VALID, studentId: "123" }).studentId, undefined);
+  assert.equal(normalizeAcademicProfile({ ...VALID, studentId: 202400123 }).studentId, undefined);
+});
+
+test("normalizeCourseCode accepts only course-code shapes", () => {
+  assert.equal(normalizeCourseCode(" csc341 "), "CSC341");
+  assert.equal(normalizeCourseCode("csc 341"), "CSC 341");
+  assert.equal(normalizeCourseCode("eee-201"), "EEE-201");
+  assert.equal(normalizeCourseCode("CSC 341A"), "CSC 341A");
+  for (const value of ["", "abc", "CSC34", "CSC 34", "CSC 3412", 341, null]) {
+    assert.equal(normalizeCourseCode(value), null, String(value));
+  }
+});
+
+test("normalizeTaProfile keeps faculty, scoped track and unique course codes", () => {
+  assert.deepEqual(normalizeTaProfile({
+    faculty: "csit",
+    track: "aid",
+    courseCodes: ["csc341", "CSC 341", "bad", "eee201"],
+  }), {
+    faculty: "CSIT",
+    track: "AID",
+    courseCodes: ["CSC341", "EEE201"],
+  });
+  // A track outside the chosen faculty falls back to that faculty's first preset.
+  const fallback = normalizeTaProfile({ faculty: "FAD", track: "AID" });
+  assert.equal(fallback.faculty, "FAD");
+  assert.equal(fallback.track, "ART");
+  assert.deepEqual(fallback.courseCodes, []);
+  assert.equal(normalizeTaProfile({ faculty: "MED" }), null);
 });
 
 test("clearOnboardingDismissed removes the stale per-user dismissal flag", () => {

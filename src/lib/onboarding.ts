@@ -68,6 +68,20 @@ export interface AcademicProfile {
   group: string;
   track: OnboardingTrack;
   section: string;
+  /** Numeric university ID derived from an E-JUST email; read-only in the wizard. */
+  studentId?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Teaching assistants do not have a study year or section. Their onboarding
+ * record keeps only the faculty/department they belong to and the course codes
+ * they assist with.
+ */
+export interface TaProfile {
+  faculty: OnboardingFaculty;
+  track: OnboardingTrack;
+  courseCodes: string[];
   updatedAt?: string;
 }
 
@@ -82,6 +96,8 @@ export interface OnboardingGate {
 
 export const ACADEMIC_PROFILE_KEY = "ejust:academic-profile";
 export const ACADEMIC_PROFILE_EVENT = "ejust:academic-profile-updated";
+export const TA_PROFILE_KEY = "ejust:ta-profile";
+export const TA_PROFILE_EVENT = "ejust:ta-profile-updated";
 
 export function dismissalKey(userId: string): string {
   return `ejust:onboarding-dismissed:${userId}`;
@@ -109,6 +125,22 @@ function asNumberString(value: unknown, max: number): string | null {
     : null;
 }
 
+const STUDENT_ID_SHAPE = /^\d{6,}$/;
+const COURSE_CODE_SHAPE = /^[A-Z]{2,5}\s*-?\s*\d{3}[A-Z]?$/;
+
+function asStudentId(value: unknown): string | null {
+  return typeof value === "string" && STUDENT_ID_SHAPE.test(value.trim())
+    ? value.trim()
+    : null;
+}
+
+/** Normalize a pasted course code (e.g. `csc 341` → `CSC 341`). */
+export function normalizeCourseCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const code = value.trim().toUpperCase().replace(/\s+/g, " ");
+  return COURSE_CODE_SHAPE.test(code) ? code : null;
+}
+
 /** Sanitize untrusted stored/API profile data; return null when it is unusable. */
 export function normalizeAcademicProfile(value: unknown): AcademicProfile | null {
   if (!value || typeof value !== "object") return null;
@@ -125,6 +157,41 @@ export function normalizeAcademicProfile(value: unknown): AcademicProfile | null
     track: asTrack(raw.track) ?? "General",
     section,
   };
+  const studentId = asStudentId(raw.studentId);
+  if (studentId) profile.studentId = studentId;
+  if (typeof raw.updatedAt === "string" && !Number.isNaN(Date.parse(raw.updatedAt))) {
+    profile.updatedAt = raw.updatedAt;
+  }
+  return profile;
+}
+
+/** Sanitize a stored/API TA profile; null when the faculty is unusable. */
+export function normalizeTaProfile(value: unknown): TaProfile | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const faculty = asFaculty(raw.faculty);
+  if (!faculty) return null;
+
+  const presets = DEPARTMENTS_BY_FACULTY[faculty] as readonly string[];
+  const requested = asTrack(raw.track);
+  const track = (requested && presets.includes(requested)
+    ? requested
+    : presets[0]) as OnboardingTrack;
+  const courseCodes: string[] = [];
+  const seenCodes = new Set<string>();
+  if (Array.isArray(raw.courseCodes)) {
+    for (const value of raw.courseCodes.slice(0, 30)) {
+      const code = normalizeCourseCode(value);
+      if (!code) continue;
+      // `CSC341` and `CSC 341` are the same course for our purposes.
+      const key = code.replace(/[\s-]/g, "");
+      if (seenCodes.has(key)) continue;
+      seenCodes.add(key);
+      courseCodes.push(code);
+    }
+  }
+
+  const profile: TaProfile = { faculty, track, courseCodes };
   if (typeof raw.updatedAt === "string" && !Number.isNaN(Date.parse(raw.updatedAt))) {
     profile.updatedAt = raw.updatedAt;
   }
@@ -148,6 +215,27 @@ export function saveAcademicProfile(profile: AcademicProfile): AcademicProfile {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ACADEMIC_PROFILE_KEY, JSON.stringify(normalized));
     window.dispatchEvent(new CustomEvent(ACADEMIC_PROFILE_EVENT, { detail: normalized }));
+  }
+  return normalized;
+}
+
+/** Read the TA onboarding record from localStorage (safe during SSR). */
+export function readTaProfile(): TaProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(TA_PROFILE_KEY);
+    return raw ? normalizeTaProfile(JSON.parse(raw) as unknown) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the TA profile and notify already-mounted hub pages. */
+export function saveTaProfile(profile: TaProfile): TaProfile {
+  const normalized: TaProfile = { ...profile, updatedAt: new Date().toISOString() };
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(TA_PROFILE_KEY, JSON.stringify(normalized));
+    window.dispatchEvent(new CustomEvent(TA_PROFILE_EVENT, { detail: normalized }));
   }
   return normalized;
 }
