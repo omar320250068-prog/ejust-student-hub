@@ -1,11 +1,14 @@
 /**
  * Outbound mail for email verification.
  *
- * Provider order: Resend -> SMTP -> Gmail API. In development, when no provider
- * is configured we log the code instead of failing so signup remains testable.
- * In production, with no working provider, callers get an explicit failure and
- * should respond 503 rather than silently "sending" a code nobody received.
+ * Provider order: Gmail API -> Resend -> SMTP. Gmail is preferred whenever all
+ * three OAuth variables are configured, so student-domain recipients are not
+ * limited by the Resend sandbox. In development, when no provider is configured
+ * we log the code instead of failing so signup remains testable. In production,
+ * with no working provider, callers get an explicit failure and should respond
+ * 503 rather than silently "sending" a code nobody received.
  */
+import { randomUUID } from "node:crypto";
 import net from "node:net";
 import tls from "node:tls";
 
@@ -38,6 +41,66 @@ function fromAddress(): string {
   if (!raw) return "";
   const match = raw.match(/<([^>]+)>/);
   return (match ? match[1] : raw).trim();
+}
+
+/** RFC 2047 encode non-ASCII header values (e.g. an Arabic display name). */
+function encodeMimeHeader(value: string): string {
+  if (/^[\x20-\x7e]*$/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
+function gmailFromHeader(): string {
+  const raw = process.env.EMAIL_FROM?.trim();
+  if (!raw) throw new Error("EMAIL_FROM is missing (required for the Gmail From header)");
+  const match = raw.match(/^(.*?)\s*<([^>]+)>$/);
+  if (!match) return encodeMimeHeader(raw);
+  const displayName = match[1].trim();
+  return displayName
+    ? `${encodeMimeHeader(displayName)} <${match[2].trim()}>`
+    : match[2].trim();
+}
+
+function base64MimeBody(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? "";
+}
+
+function gmailMimeMessage(to: string, code: string): string {
+  const boundary = `----=_EjustHub_${randomUUID()}`;
+  return [
+    `From: ${gmailFromHeader()}`,
+    `To: ${to}`,
+    `Subject: ${encodeMimeHeader(SUBJECT)}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64MimeBody(textBody(code)),
+    `--${boundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64MimeBody(htmlBody(code)),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+}
+
+function gmailConfigured(): boolean {
+  return Boolean(
+    process.env.GMAIL_CLIENT_ID?.trim() &&
+    process.env.GMAIL_CLIENT_SECRET?.trim() &&
+    process.env.GMAIL_REFRESH_TOKEN?.trim()
+  );
+}
+
+function gmailApiError(step: string, status: number, body: string): Error {
+  const scopeHint = /insufficient|scope/i.test(body)
+    ? " Ensure the OAuth client has https://www.googleapis.com/auth/gmail.send scope and re-consent the refresh token."
+    : "";
+  return new Error(`Gmail ${step} returned ${status}: ${body}${scopeHint}`);
 }
 
 function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
@@ -259,25 +322,20 @@ async function gmailAccessToken(): Promise<string> {
     }),
     "Gmail token request timed out"
   );
-  if (!response.ok) throw new Error(`Gmail token returned ${response.status}`);
-  const data = (await response.json()) as { access_token?: string };
-  if (!data.access_token) throw new Error("Gmail token response had no access_token");
+  const body = await response.text();
+  if (!response.ok) throw gmailApiError("token request", response.status, body);
+  let data: { access_token?: string };
+  try {
+    data = JSON.parse(body) as { access_token?: string };
+  } catch {
+    throw new Error(`Gmail token response was not JSON: ${body}`);
+  }
+  if (!data.access_token) throw new Error(`Gmail token response had no access_token: ${body}`);
   return data.access_token;
 }
 
 async function sendViaGmail(to: string, code: string): Promise<void> {
   const accessToken = await gmailAccessToken();
-  const from = fromAddress();
-  if (!from) throw new Error("EMAIL_FROM is missing");
-  const mime = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${SUBJECT}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "",
-    textBody(code),
-  ].join("\r\n");
   const response = await withTimeout(
     fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages", {
       method: "POST",
@@ -285,23 +343,38 @@ async function sendViaGmail(to: string, code: string): Promise<void> {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ raw: Buffer.from(mime, "utf8").toString("base64url") }),
+      body: JSON.stringify({
+        raw: Buffer.from(gmailMimeMessage(to, code), "utf8").toString("base64url"),
+      }),
       cache: "no-store",
     }),
     "Gmail send timed out"
   );
-  if (!response.ok) throw new Error(`Gmail send returned ${response.status}`);
+  if (!response.ok) throw gmailApiError("send", response.status, await response.text());
 }
 
 export async function sendVerificationEmail(email: string, code: string): Promise<MailResult> {
   const failures: string[] = [];
+
+  if (gmailConfigured()) {
+    try {
+      await sendViaGmail(email, code);
+      return { ok: true, provider: "gmail" };
+    } catch (error) {
+      const message = (error as Error).message;
+      failures.push(`gmail: ${message}`);
+      console.warn(`[mailer] gmail failed: ${message}`);
+    }
+  }
 
   if (process.env.RESEND_API_KEY?.trim()) {
     try {
       await sendViaResend(email, code);
       return { ok: true, provider: "resend" };
     } catch (error) {
-      failures.push(`resend: ${(error as Error).message}`);
+      const message = (error as Error).message;
+      failures.push(`resend: ${message}`);
+      console.warn(`[mailer] resend failed: ${message}`);
     }
   }
 
@@ -311,16 +384,9 @@ export async function sendVerificationEmail(email: string, code: string): Promis
       await sendViaSmtp(smtp, email, code);
       return { ok: true, provider: "smtp" };
     } catch (error) {
-      failures.push(`smtp: ${(error as Error).message}`);
-    }
-  }
-
-  if (process.env.GMAIL_CLIENT_ID?.trim() && process.env.EMAIL_FROM?.trim()) {
-    try {
-      await sendViaGmail(email, code);
-      return { ok: true, provider: "gmail" };
-    } catch (error) {
-      failures.push(`gmail: ${(error as Error).message}`);
+      const message = (error as Error).message;
+      failures.push(`smtp: ${message}`);
+      console.warn(`[mailer] smtp failed: ${message}`);
     }
   }
 
