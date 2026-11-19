@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { GraduationCap, Loader2 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -84,14 +86,14 @@ export default function SignUpPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-gray-600">Name</span>
+            <span className="text-xs font-medium text-gray-600">{t("auth.name")}</span>
             <input
               type="text"
               autoComplete="name"
               value={form.name}
               onChange={(event) => update("name")(event.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              placeholder="Omar Hindawy"
+              placeholder={t("auth.namePlaceholder")}
             />
           </label>
 

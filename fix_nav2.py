@@ -1,4 +1,4 @@
-path = r"C:\Users\OMAR HINDAWY\campus-navigator\src\components\TopNav.tsx"
+path = r"src\components\TopNav.tsx"
 s = open(path).read()
 s = s.replace('import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User } from "lucide-react";',
               'import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText } from "lucide-react";')

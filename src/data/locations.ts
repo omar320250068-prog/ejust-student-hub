@@ -79,7 +79,7 @@ export const LOCATIONS: CampusLocation[] = [
       },
       {
         id: "r-sa-2",
-        author: "Omar (1st yr, ARCH)",
+        author: "Student (1st yr, ARCH)",
         rating: 3,
         comment: "Busy around add/drop week. Go right at 09:00 if you can.",
         createdAt: "2026-09-08",

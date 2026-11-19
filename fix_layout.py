@@ -1,4 +1,4 @@
-path = r"C:\Users\OMAR HINDAWY\campus-navigator\src\app\layout.tsx"
+path = r"src\app\layout.tsx"
 with open(path) as f:
     s = f.read()
 s = s.replace('import "./globals.css";', 'import "./globals.css";\nimport { Providers } from "./providers";')

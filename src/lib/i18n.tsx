@@ -167,6 +167,7 @@ const dictionaries = {
     auth: {
       welcome: "Welcome back", subtitle: "Sign in to sync your campus life.",
       email: "University email", password: "Password", signIn: "Sign in", signingIn: "Signing in…",
+      name: "Full name", namePlaceholder: "Your full name",
       google: "Continue with Google", newHere: "New here?", create: "Create an account",
       invalidEmail: "Use a valid university email address.", invalidPassword: "Enter your password.",
       invalidCredentials: "Invalid email or password.", network: "Network error. Please try again.",
@@ -565,6 +566,7 @@ const dictionaries = {
     auth: {
       welcome: "مرحباً بعودتك", subtitle: "سجل الدخول لمزامنة حياتك الجامعية.",
       email: "البريد الجامعي", password: "كلمة المرور", signIn: "تسجيل الدخول", signingIn: "جارٍ الدخول…",
+      name: "الاسم الكامل", namePlaceholder: "الاسم بالكامل",
       google: "المتابعة باستخدام Google", newHere: "جديد هنا؟", create: "إنشاء حساب",
       invalidEmail: "استخدم بريداً جامعياً صحيحاً.", invalidPassword: "أدخل كلمة المرور.",
       invalidCredentials: "البريد أو كلمة المرور غير صحيحة.", network: "خطأ في الشبكة. حاول مرة أخرى.",
@@ -963,6 +965,7 @@ const dictionaries = {
     auth: {
       welcome: "おかえりなさい", subtitle: "ログインしてキャンパス生活を同期します。",
       email: "大学メール", password: "パスワード", signIn: "ログイン", signingIn: "ログイン中…",
+      name: "氏名", namePlaceholder: "氏名",
       google: "Googleで続行", newHere: "初めてですか？", create: "アカウントを作成",
       invalidEmail: "有効な大学メールを入力してください。", invalidPassword: "パスワードを入力してください。",
       invalidCredentials: "メールまたはパスワードが違います。", network: "ネットワークエラーです。",

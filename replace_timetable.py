@@ -1,4 +1,4 @@
-path = r"C:\Users\OMAR HINDAWY\campus-navigator\src\app\timetable\page.tsx"
+path = r"src\app\timetable\page.tsx"
 s = open(path).read()
 old = '''import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Download, Upload, Printer } from "lucide-react";

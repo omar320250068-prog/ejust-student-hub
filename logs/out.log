@@ -6,70 +6,70 @@
 - Local:         http://localhost:3111
 - Network:       http://192.168.19.1:3111
 ✓ Ready in 702ms
-⚠ Warning: Next.js ignored package-lock.json in C:\Users\OMAR HINDAWY because it is outside the current Git repository (C:\Users\OMAR HINDAWY\campus-navigator).
+⚠ Warning: Next.js ignored package-lock.json in <home> because it is outside the current Git repository (<repo>).
  To use this directory, set `outputFileTracingRoot` in your Next.js config.
 
 ✓ Running next.config.ts took 70ms
 [31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
 [31m[auth][cause][0m: n2: response parameter "iss" (issuer) missing
-    at n5 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
-    at C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
-    at o$ (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
+    at n5 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
+    at <repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
+    at o$ (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async oz (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
-    at async o0 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
-    at async o2 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
-    at async r (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
-    at async r0.renderToResponse (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
-    at async r0.executeRequest (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
+    at async oz (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
+    at async o0 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
+    at async o2 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
+    at async r (<repo>\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
+    at async r0.renderToResponse (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
+    at async r0.executeRequest (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
 [31m[auth][details][0m: {
   "parameters": {},
   "provider": "google"
 }
 [31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
 [31m[auth][cause][0m: n2: response parameter "iss" (issuer) missing
-    at n5 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
-    at C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
-    at o$ (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
+    at n5 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
+    at <repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
+    at o$ (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async oz (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
-    at async o0 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
-    at async o2 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
-    at async r (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
-    at async r0.renderToResponse (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
-    at async r0.executeRequest (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
+    at async oz (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
+    at async o0 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
+    at async o2 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
+    at async r (<repo>\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
+    at async r0.renderToResponse (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
+    at async r0.executeRequest (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
 [31m[auth][details][0m: {
   "parameters": {},
   "provider": "google"
 }
 [31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
 [31m[auth][cause][0m: n2: response parameter "iss" (issuer) missing
-    at n5 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
-    at C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
-    at o$ (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
+    at n5 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:5174)
+    at <repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:29806
+    at o$ (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:30596)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async oz (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
-    at async o0 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
-    at async o2 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
-    at async r (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
-    at async r0.renderToResponse (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
-    at async r0.executeRequest (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
+    at async oz (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
+    at async o0 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
+    at async o2 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
+    at async r (<repo>\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
+    at async r0.renderToResponse (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
+    at async r0.executeRequest (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:17509)
 [31m[auth][details][0m: {
   "parameters": {},
   "provider": "google"
 }
 [31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
 [31m[auth][cause][0m: ib: server responded with an error in the response body
-    at iR (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:11888)
+    at iR (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:11888)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async iM (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:14756)
-    at async i3 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:20126)
-    at async o$ (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:32152)
-    at async oz (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
-    at async o0 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
-    at async o2 (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
-    at async r (C:\Users\OMAR HINDAWY\campus-navigator\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
-    at async r0.renderToResponse (C:\Users\OMAR HINDAWY\campus-navigator\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
+    at async iM (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:14756)
+    at async i3 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:20126)
+    at async o$ (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:32152)
+    at async oz (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:38066)
+    at async o0 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:49897)
+    at async o2 (<repo>\.next\server\chunks\_0hee_yem1fn88._.js:404:54578)
+    at async r (<repo>\.next\server\chunks\_1tjis3pqfxk7_._.js:1:6431)
+    at async r0.renderToResponse (<repo>\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:14352)
 [31m[auth][details][0m: {
   "error": "invalid_client",
   "error_description": "The OAuth client was not found.",
