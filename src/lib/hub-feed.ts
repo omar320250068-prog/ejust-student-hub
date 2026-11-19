@@ -1,4 +1,5 @@
 import type { Exam, ExamType } from "./exams";
+import { inferFacultyFromCourseCode, tagNoticesWithFaculty, type Faculty } from "./faculty.ts";
 
 /** Values stored by the E-JUST Hub MCP server in Neon. */
 export type HubExamType = "MIDTERM" | "FINAL" | "QUIZ";
@@ -34,6 +35,7 @@ export interface LiveExam extends Exam {
   courseName: string | null;
   courseNameAr: string | null;
   location: string;
+  faculty: Faculty;
   source: "hub";
 }
 
@@ -45,6 +47,7 @@ export interface LiveNotice {
   courseCode: string;
   courseName: string | null;
   targetFaculty: string;
+  faculty: Faculty;
   expiresAt: string | null;
   createdAt: string;
 }
@@ -114,6 +117,7 @@ export function examRowToUi(row: HubExamRow): LiveExam {
     courseName: row.courseName,
     courseNameAr: row.courseNameAr,
     location: location || "TBA",
+    faculty: inferFacultyFromCourseCode(row.courseCode),
     source: "hub",
   };
 }
@@ -152,7 +156,7 @@ export function filterActiveNotices(
   rows: HubNoticeRow[],
   { nowMs = Date.now(), faculty = "CSIT", codes = [] }: NoticeFilter = {}
 ): LiveNotice[] {
-  return rows
+  const mapped = rows
     .filter((row) => isNoticeActive(row, nowMs) && noticeMatchesAudience(row, faculty, codes))
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .map((row) => ({
@@ -167,4 +171,5 @@ export function filterActiveNotices(
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
     }));
+  return tagNoticesWithFaculty(mapped);
 }

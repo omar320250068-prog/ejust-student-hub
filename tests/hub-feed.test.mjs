@@ -61,6 +61,7 @@ test("examRowToUi maps hub rows into planner exams with a real date and location
   assert.equal(exam.courseName, "Database Systems");
   assert.equal(exam.courseNameAr, "قواعد البيانات");
   assert.equal(exam.notes, "Bring a student ID");
+  assert.equal(exam.faculty, "CSIT");
   assert.equal(
     exam.date,
     new Date("2026-12-13T10:00:00").toISOString()
@@ -130,4 +131,6 @@ test("filterActiveNotices drops expired and irrelevant notices and sorts newest 
     ["notice-1", "notice-2"]
   );
   assert.equal(notices[0].category, "EXAM");
+  assert.equal(notices[0].faculty, "CSIT");
+  assert.equal(notices[1].faculty, "SHARED");
 });

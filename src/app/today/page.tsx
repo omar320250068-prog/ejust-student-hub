@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import type { HubNoticeCategory, LiveNotice } from "@/lib/hub-feed";
+import { inferFacultyFromCourseCode, isFaculty } from "@/lib/faculty";
 import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
 import { computeStats, formatGpa, type Course } from "@/lib/gpa";
 import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
@@ -177,8 +178,15 @@ export default function TodayPage() {
               <article key={notice.id} className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-semibold text-white">{notice.title}</h3>
-                  <span className="shrink-0 rounded-full border border-cyan-200/40 bg-cyan-300/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-100">
-                    {t(CATEGORY_LABEL[notice.category])}
+                  <span className="flex shrink-0 items-center gap-1">
+                    <span className="rounded-full border border-indigo-200/40 bg-indigo-300/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-100">
+                      {isFaculty(notice.faculty)
+                        ? notice.faculty
+                        : inferFacultyFromCourseCode(notice.courseCode)}
+                    </span>
+                    <span className="rounded-full border border-cyan-200/40 bg-cyan-300/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-100">
+                      {t(CATEGORY_LABEL[notice.category])}
+                    </span>
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-300">{notice.body}</p>

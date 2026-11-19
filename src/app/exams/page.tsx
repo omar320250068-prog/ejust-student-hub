@@ -10,7 +10,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { AlarmClock, Plus, Trash2, Brain, CalendarDays } from "lucide-react";
+import { AlarmClock, Plus, Trash2, Brain, CalendarDays, FileText } from "lucide-react";
 import {
   EXAM_TYPES,
   allocateStudy,
@@ -22,10 +22,16 @@ import {
 import { downloadEventIcs, examEvent } from "@/lib/ics";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import { normalizeCode, type LiveExam } from "@/lib/hub-feed";
+import { FACULTIES, inferFacultyFromCourseCode, isFaculty, type Faculty } from "@/lib/faculty";
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
+import ExamImportModal from "@/components/ExamImportModal";
 
 const STORAGE_KEY = "ejust-exams-v1";
+const FACULTY_KEY = "ejust:faculty";
+
+type ExamFilterMode = "my" | "faculty" | "all";
+type FilterSelection = ExamFilterMode | "auto";
 
 const EXAM_LABEL: Record<ExamType, TranslationKey> = {
   Quiz: "study.examQuiz",
@@ -44,6 +50,14 @@ function examKey(exam: Exam): string {
   return `${normalizeCode(exam.courseCode)}|${exam.type}|${new Date(exam.date).toDateString()}`;
 }
 
+function filterChipClass(active: boolean): string {
+  return `rounded-full border px-3 py-1 text-xs font-semibold transition ${
+    active
+      ? "border-cyan-400 bg-cyan-100 text-cyan-800 dark:border-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-200"
+      : "border-slate-200 bg-white text-slate-500 hover:border-cyan-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+  }`;
+}
+
 export default function ExamsPage() {
   const { locale, t } = useLanguage();
   const [exams, setExams] = useState<Exam[]>([]);
@@ -57,6 +71,10 @@ export default function ExamsPage() {
   const [seatResult, setSeatResult] = useState<string | null>(null);
   const synced = useSyncedCourses();
   const [highlightSynced, setHighlightSynced] = useState(true);
+  const [filterMode, setFilterMode] = useState<FilterSelection>("auto");
+  const [faculty, setFaculty] = useState<Faculty>("CSIT");
+  const [importOpen, setImportOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const syncedCodes = useMemo(
     () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
     [synced.courses]
@@ -76,11 +94,12 @@ export default function ExamsPage() {
       setNowMs(Date.now());
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
+        const savedFaculty = window.localStorage.getItem(FACULTY_KEY);
+        if (isFaculty(savedFaculty)) setFaculty(savedFaculty);
         if (raw) {
           const saved = JSON.parse(raw) as { exams?: Exam[]; dailyHours?: number };
           if (Array.isArray(saved.exams)) setExams(saved.exams);
           if (typeof saved.dailyHours === "number") setDailyHours(saved.dailyHours);
-          return;
         }
       } catch {
         // corrupt storage — keep the local planner empty
@@ -108,7 +127,7 @@ export default function ExamsPage() {
         if (!controller.signal.aborted) setHubLoading(false);
       });
     return () => controller.abort();
-  }, [mounted, syncedCodes]);
+  }, [mounted, syncedCodes, refreshKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -124,6 +143,15 @@ export default function ExamsPage() {
     }
   }, [exams, dailyHours, mounted]);
 
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      window.localStorage.setItem(FACULTY_KEY, faculty);
+    } catch {
+      // storage unavailable
+    }
+  }, [faculty, mounted]);
+
   const allExams = useMemo(() => {
     const localKeys = new Set(hubExams.map(examKey));
     return [
@@ -132,25 +160,39 @@ export default function ExamsPage() {
     ];
   }, [exams, hubExams]);
 
+  const effectiveMode: ExamFilterMode =
+    filterMode === "auto" ? (syncedCodes.size > 0 ? "my" : "faculty") : filterMode;
+
+  const visibleExams = useMemo(() => {
+    if (effectiveMode === "all") return allExams;
+    if (effectiveMode === "my") {
+      return allExams.filter((exam) => syncedCodes.has(normalizeCode(exam.courseCode)));
+    }
+    return allExams.filter((exam) => {
+      const examFaculty = "faculty" in exam ? exam.faculty : inferFacultyFromCourseCode(exam.courseCode);
+      return examFaculty === faculty;
+    });
+  }, [allExams, effectiveMode, faculty, syncedCodes]);
+
   const allocations = useMemo(
-    () => (nowMs === null ? [] : allocateStudy(allExams, dailyHours, new Date(nowMs))),
-    [allExams, dailyHours, nowMs]
+    () => (nowMs === null ? [] : allocateStudy(visibleExams, dailyHours, new Date(nowMs))),
+    [visibleExams, dailyHours, nowMs]
   );
 
   const upcoming = useMemo(() => {
     if (nowMs === null) return [];
     const now = new Date(nowMs);
-    return [...allExams]
+    return [...visibleExams]
       .map((exam) => ({ exam, days: daysLeft(exam.date, now) }))
       .filter((x) => x.days >= 0)
       .sort((a, b) => a.days - b.days);
-  }, [allExams, nowMs]);
+  }, [visibleExams, nowMs]);
 
   const past = useMemo(() => {
     if (nowMs === null) return 0;
     const now = new Date(nowMs);
-    return allExams.filter((e) => daysLeft(e.date, now) < 0).length;
-  }, [allExams, nowMs]);
+    return visibleExams.filter((e) => daysLeft(e.date, now) < 0).length;
+  }, [visibleExams, nowMs]);
   const chartData = allocations.map((a) => ({
     name: a.exam.courseCode,
     hours: a.totalHours,
@@ -220,6 +262,55 @@ export default function ExamsPage() {
         </div>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilterMode("my")}
+          className={filterChipClass(effectiveMode === "my")}
+          aria-pressed={effectiveMode === "my"}
+        >
+          {t("study.filterMyCourses")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterMode("faculty")}
+          className={filterChipClass(effectiveMode === "faculty")}
+          aria-pressed={effectiveMode === "faculty"}
+        >
+          {t("study.filterMyFaculty")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterMode("all")}
+          className={filterChipClass(effectiveMode === "all")}
+          aria-pressed={effectiveMode === "all"}
+        >
+          {t("study.filterAllFaculties")}
+        </button>
+        {effectiveMode === "faculty" && (
+          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+            {t("study.faculty")}
+            <select
+              value={faculty}
+              onChange={(event) => setFaculty(event.target.value as Faculty)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900"
+            >
+              {FACULTIES.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          type="button"
+          onClick={() => setImportOpen(true)}
+          className="ms-auto flex items-center gap-1.5 rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+        >
+          <FileText size={13} />
+          {t("study.importOpen")}
+        </button>
+      </div>
+
       <section className="mt-8 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? "Add an exam to start the clock."}</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.hall")}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Hall A2</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Building E</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Floor 2</span></div></div>
@@ -234,6 +325,10 @@ export default function ExamsPage() {
               : hub.courseName
             : null;
           const isSynced = syncedCodes.has(normalizeCode(exam.courseCode));
+          const examFaculty: Faculty =
+            "faculty" in exam && isFaculty(exam.faculty)
+              ? exam.faculty
+              : inferFacultyFromCourseCode(exam.courseCode);
           const emphasized = highlightSynced && isSynced;
           const dimmed = highlightSynced && syncedCodes.size > 0 && !isSynced;
           return (
@@ -269,6 +364,9 @@ export default function ExamsPage() {
             <div className="mt-2 flex flex-wrap gap-1 text-[11px]">
               <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
                 {t(EXAM_LABEL[exam.type])}
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+                {examFaculty}
               </span>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
                 {t("study.ofGrade").replace("{n}", String(exam.weight))}
@@ -426,6 +524,13 @@ export default function ExamsPage() {
           </button>
         </form>
       </section>
+      {importOpen && (
+        <ExamImportModal
+          open
+          onClose={() => setImportOpen(false)}
+          onImported={() => setRefreshKey((key) => key + 1)}
+        />
+      )}
     </StudyShell>
   );
 }
