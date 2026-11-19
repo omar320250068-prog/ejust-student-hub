@@ -22,8 +22,8 @@ export interface ClassBlock {
   color: string;
   instructor?: string;
   type?: "Lecture" | "Lab" | "Tutorial" | "Custom";
-  faculty?: "CSIT" | "Engineering" | "Business";
-  year?: 1 | 2 | 3 | 4;
+  faculty?: "CSIT" | "Engineering" | "Business" | "FOP" | "BAS" | "FAD";
+  year?: 1 | 2 | 3 | 4 | 5;
   group?: string;
   track?: "CNC" | "AID" | "CSC" | "BIF" | null;
   section?: string;

@@ -22,8 +22,8 @@ import {
   toTimetableTrack,
 } from "@/lib/onboarding";
 
-type Faculty = "CSIT" | "Engineering" | "Business";
-type AcademicYear = 1 | 2 | 3 | 4;
+type Faculty = "CSIT" | "Engineering" | "Business" | "FOP" | "BAS" | "FAD";
+type AcademicYear = 1 | 2 | 3 | 4 | 5;
 type Group = "Group 1" | "Group 2" | "Group 3" | "Group 4";
 type Track = "CNC" | "AID" | "CSC" | "BIF";
 type MeetingType = "LECTURE" | "LAB" | "SECTION" | "TUTORIAL";
@@ -70,8 +70,8 @@ const LEGACY_KEYS = ["ejust:timetable", "ejust-timetable-v1"];
 const GRID_START = 9 * 60;
 const GRID_END = 16 * 60;
 const HOUR_PX = 68;
-const FACULTIES: Faculty[] = ["CSIT", "Engineering", "Business"];
-const YEARS: AcademicYear[] = [1, 2, 3, 4];
+const FACULTIES: Faculty[] = ["CSIT", "Engineering", "Business", "FOP", "BAS", "FAD"];
+const YEARS: AcademicYear[] = [1, 2, 3, 4, 5];
 const TRACKS: Track[] = ["CNC", "AID", "CSC", "BIF"];
 const SCHEDULE_DAYS: Day[] = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu"];
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2"];
@@ -99,6 +99,7 @@ const YEAR_LABEL: Record<AcademicYear, TranslationKey> = {
   2: "timetable.secondYear",
   3: "timetable.thirdYear",
   4: "timetable.fourthYear",
+  5: "timetable.fifthYear",
 };
 
 const GROUP_LABEL: Record<Group, TranslationKey> = {
@@ -155,11 +156,20 @@ function legacyProfileKey(profile: Profile): string {
 }
 
 function facultyKey(faculty: Faculty): TranslationKey {
-  return faculty === "CSIT"
-    ? "timetable.csit"
-    : faculty === "Engineering"
-      ? "timetable.engineering"
-      : "timetable.business";
+  switch (faculty) {
+    case "CSIT":
+      return "timetable.csit";
+    case "Engineering":
+      return "timetable.engineering";
+    case "Business":
+      return "timetable.business";
+    case "FOP":
+      return "onboarding.fop";
+    case "BAS":
+      return "onboarding.bas";
+    case "FAD":
+      return "onboarding.fad";
+  }
 }
 
 function normalizeCode(code: string): string {

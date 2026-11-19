@@ -27,7 +27,12 @@ import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import ExamImportModal from "@/components/ExamImportModal";
 import RoomBadge from "@/components/RoomBadge";
-import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
+import {
+  ACADEMIC_PROFILE_EVENT,
+  FACULTY_LABEL_KEY,
+  readAcademicProfile,
+  toHubFaculty,
+} from "@/lib/onboarding";
 
 const STORAGE_KEY = "ejust-exams-v1";
 const FACULTY_KEY = "ejust:faculty";
@@ -309,7 +314,9 @@ export default function ExamsPage() {
               className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900"
             >
               {FACULTIES.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option} — {t(FACULTY_LABEL_KEY[option])}
+                </option>
               ))}
             </select>
           </label>

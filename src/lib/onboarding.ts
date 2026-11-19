@@ -7,14 +7,57 @@
  */
 import type { Faculty } from "./faculty";
 
-export const ONBOARDING_FACULTIES = ["CSIT", "FOE", "FIBH"] as const;
+/** The six teachable faculties shown in onboarding (SHARED is a service pool). */
+export const ONBOARDING_FACULTIES = [
+  "FOE",
+  "CSIT",
+  "FIBH",
+  "FOP",
+  "BAS",
+  "FAD",
+] as const;
 export type OnboardingFaculty = (typeof ONBOARDING_FACULTIES)[number];
 
-export const ACADEMIC_YEARS = [1, 2, 3, 4] as const;
+export const ACADEMIC_YEARS = [1, 2, 3, 4, 5] as const;
 export type AcademicYear = (typeof ACADEMIC_YEARS)[number];
 
-export const ONBOARDING_TRACKS = ["CNC", "AID", "CSC", "BIF", "General"] as const;
+/** Department / specialization presets; CSIT uses its four official tracks. */
+export const DEPARTMENTS_BY_FACULTY = {
+  FOE: ["ECE", "MEC", "MTR", "EEE", "MSE", "ENV", "ERE", "CBE", "CPE", "IPE", "IME", "BME", "ARC"],
+  CSIT: ["CNC", "AID", "CSC", "BIF"],
+  FIBH: ["ACC", "FIN", "MGT", "MKT", "ECO", "BUS", "HRM"],
+  FOP: ["PHM", "PHC", "PCL", "PCE", "PHA", "BIO"],
+  BAS: ["NAN", "BTC", "ACM", "EMT", "SPC", "SCI"],
+  FAD: ["ART", "DES", "VIS", "GRD", "IND"],
+} as const;
+
+export const CSIT_TRACKS = DEPARTMENTS_BY_FACULTY.CSIT;
+export type CsitTrack = (typeof CSIT_TRACKS)[number];
+
+export const ONBOARDING_TRACKS = [
+  ...DEPARTMENTS_BY_FACULTY.CSIT,
+  ...DEPARTMENTS_BY_FACULTY.FOE,
+  ...DEPARTMENTS_BY_FACULTY.FIBH,
+  ...DEPARTMENTS_BY_FACULTY.FOP,
+  ...DEPARTMENTS_BY_FACULTY.BAS,
+  ...DEPARTMENTS_BY_FACULTY.FAD,
+  "General",
+] as const;
 export type OnboardingTrack = (typeof ONBOARDING_TRACKS)[number];
+
+/** Translation keys for the faculty names, shared by the wizard and filters. */
+export const FACULTY_LABEL_KEY: Record<
+  Faculty,
+  "onboarding.foe" | "onboarding.csit" | "onboarding.fibh" | "onboarding.fop" | "onboarding.bas" | "onboarding.fad" | "onboarding.shared"
+> = {
+  FOE: "onboarding.foe",
+  CSIT: "onboarding.csit",
+  FIBH: "onboarding.fibh",
+  FOP: "onboarding.fop",
+  BAS: "onboarding.bas",
+  FAD: "onboarding.fad",
+  SHARED: "onboarding.shared",
+};
 
 export const SECTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1));
 export const GROUPS = ["1", "2", "3", "4"] as const;
@@ -135,10 +178,11 @@ export function shouldShowOnboarding(gate: OnboardingGate): boolean {
 /** The timetable page uses friendlier faculty/group labels than the hub feed. */
 export function toTimetableFaculty(
   faculty: OnboardingFaculty
-): "CSIT" | "Engineering" | "Business" {
+): "CSIT" | "Engineering" | "Business" | "FOP" | "BAS" | "FAD" {
   if (faculty === "FOE") return "Engineering";
   if (faculty === "FIBH") return "Business";
-  return "CSIT";
+  if (faculty === "CSIT") return "CSIT";
+  return faculty;
 }
 
 export function toTimetableGroup(group: string): "Group 1" | "Group 2" | "Group 3" | "Group 4" {
@@ -146,9 +190,12 @@ export function toTimetableGroup(group: string): "Group 1" | "Group 2" | "Group 
   return `Group ${number}` as "Group 1" | "Group 2" | "Group 3" | "Group 4";
 }
 
-/** The timetable grid has no "General" column; CSC is its default program. */
-export function toTimetableTrack(track: OnboardingTrack): "CNC" | "AID" | "CSC" | "BIF" {
-  return track === "General" ? "CSC" : track;
+/**
+ * The legacy timetable grid only has four CSIT columns; other faculties' track
+ * selections fall back to its default program.
+ */
+export function toTimetableTrack(track: OnboardingTrack): CsitTrack {
+  return CSIT_TRACKS.find((candidate) => candidate === track) ?? "CSC";
 }
 
 /** Hub exam/notice filters use the same short faculty codes as the wizard. */

@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
@@ -7,8 +7,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { studentProfiles, users } from "@/db/schema";
 import { recordAuthError } from "@/lib/auth-error-store";
+import { verifyOtpGrant } from "@/lib/email-otp-grant";
 import { resolveMeritTier, type MeritTier } from "@/lib/merit";
 import type { TaStatus } from "@/types/next-auth";
+
+/** Thrown by the password provider so the login UI can trigger OTP inline. */
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "email_not_verified";
+}
 
 const URL_ENV_KEYS = ["AUTH_URL", "NEXTAUTH_URL"] as const;
 
@@ -67,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: users.email,
             image: users.image,
             passwordHash: users.passwordHash,
+            emailVerified: users.emailVerified,
             role: users.role,
           })
           .from(users)
@@ -77,6 +84,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
+
+        // A valid password is not enough for a newly registered E-JUST account:
+        // require a completed OTP challenge before any session is created.
+        if (!user.emailVerified) throw new EmailNotVerifiedError();
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+        };
+      },
+    }),
+    Credentials({
+      id: "email-otp",
+      name: "Verified university email",
+      credentials: {
+        grant: { label: "Verification grant", type: "text" },
+      },
+      async authorize(credentials) {
+        const email = await verifyOtpGrant(credentials?.grant);
+        if (!email) return null;
+
+        const [user] = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            image: users.image,
+            role: users.role,
+            emailVerified: users.emailVerified,
+          })
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+
+        if (!user?.emailVerified) return null;
 
         return {
           id: user.id,

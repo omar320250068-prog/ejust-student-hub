@@ -5,40 +5,31 @@
  * faculty is inferred from the course code when a row is mapped into the UI.
  */
 
-export const FACULTIES = ["CSIT", "FOE", "FIBH", "SHARED"] as const;
+export const FACULTIES = [
+  "FOE",
+  "CSIT",
+  "FIBH",
+  "FOP",
+  "BAS",
+  "FAD",
+  "SHARED",
+] as const;
 export type Faculty = (typeof FACULTIES)[number];
 
-const PREFIX_FACULTY: Record<string, Faculty> = {
-  // Computer Science & Information Technology
-  CSC: "CSIT",
-  AID: "CSIT",
-  CNC: "CSIT",
-  BIF: "CSIT",
-  // Faculty of Engineering
-  ECE: "FOE",
-  MEC: "FOE",
-  EEE: "FOE",
-  MSE: "FOE",
-  ENV: "FOE",
-  CBE: "FOE",
-  IPE: "FOE",
-  ARC: "FOE",
-  // Faculty of Business & Humanities
-  ACC: "FIBH",
-  FIN: "FIBH",
-  MGT: "FIBH",
-  MKT: "FIBH",
-  ECO: "FIBH",
-  BUS: "FIBH",
-  HRM: "FIBH",
-  // Shared / service departments
-  MTH: "SHARED",
-  PHY: "SHARED",
-  CHM: "SHARED",
-  LRA: "SHARED",
-  HUM: "SHARED",
-  ENG: "SHARED",
+/** Course-code prefixes owned by each faculty (three uppercase letters). */
+export const FACULTY_PREFIXES: Record<Faculty, readonly string[]> = {
+  FOE: ["ECE", "MEC", "MTR", "EEE", "MSE", "ENV", "ERE", "CBE", "CPE", "IPE", "IME", "BME", "ARC"],
+  CSIT: ["CSC", "AID", "CNC", "BIF"],
+  FIBH: ["ACC", "FIN", "MGT", "MKT", "ECO", "BUS", "HRM"],
+  FOP: ["PHM", "PHC", "PCL", "PCE", "PHA", "BIO"],
+  BAS: ["NAN", "BTC", "ACM", "EMT", "SPC", "SCI"],
+  FAD: ["ART", "DES", "VIS", "GRD", "IND"],
+  SHARED: ["MTH", "PHY", "CHM", "LRA", "HUM", "ENG", "JPN"],
 };
+
+const PREFIX_FACULTY: Record<string, Faculty> = Object.fromEntries(
+  FACULTIES.flatMap((faculty) => FACULTY_PREFIXES[faculty].map((prefix) => [prefix, faculty]))
+);
 
 function normalized(value: string | null | undefined): string {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -62,7 +53,7 @@ export function facultyLabel(faculty: Faculty): string {
   return faculty;
 }
 
-/** True when `value` is one of the four supported faculty codes. */
+/** True when `value` is a supported E-JUST faculty code. */
 export function isFaculty(value: unknown): value is Faculty {
   return FACULTIES.includes(normalized(value as string | null | undefined) as Faculty);
 }

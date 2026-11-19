@@ -15,8 +15,9 @@ import {
 } from "@/components/SisSyncGuide";
 import {
   ACADEMIC_YEARS,
+  DEPARTMENTS_BY_FACULTY,
+  FACULTY_LABEL_KEY,
   ONBOARDING_FACULTIES,
-  ONBOARDING_TRACKS,
   SECTIONS,
   isOnboardingDismissed,
   markOnboardingDismissed,
@@ -25,7 +26,6 @@ import {
   shouldShowOnboarding,
   type AcademicProfile,
   type OnboardingFaculty,
-  type OnboardingTrack,
 } from "@/lib/onboarding";
 
 const PROFILE_FEATURE = "academic-profile";
@@ -38,15 +38,6 @@ const DEFAULT_PROFILE: AcademicProfile = {
   group: "1",
   track: "CSC",
   section: "1",
-};
-
-const FACULTY_LABEL: Record<
-  OnboardingFaculty,
-  "onboarding.csit" | "onboarding.foe" | "onboarding.fibh"
-> = {
-  CSIT: "onboarding.csit",
-  FOE: "onboarding.foe",
-  FIBH: "onboarding.fibh",
 };
 
 const selectClass =
@@ -241,17 +232,19 @@ export default function OnboardingWizard() {
                   value={draft.faculty}
                   onChange={(event) => {
                     const faculty = event.target.value as OnboardingFaculty;
-                    setDraft((current) => ({
-                      ...current,
-                      faculty,
-                      track: faculty === "CSIT" ? current.track : "General",
-                    }));
+                    setDraft((current) => {
+                      const presets = DEPARTMENTS_BY_FACULTY[faculty] as readonly string[];
+                      const track = presets.includes(current.track)
+                        ? current.track
+                        : presets[0];
+                      return { ...current, faculty, track: track as AcademicProfile["track"] };
+                    });
                   }}
                   className={selectClass}
                 >
                   {ONBOARDING_FACULTIES.map((faculty) => (
                     <option key={faculty} value={faculty}>
-                      {faculty} — {t(FACULTY_LABEL[faculty])}
+                      {faculty} — {t(FACULTY_LABEL_KEY[faculty])}
                     </option>
                   ))}
                 </select>
@@ -279,29 +272,27 @@ export default function OnboardingWizard() {
                 </select>
               </label>
 
-              {draft.faculty === "CSIT" && (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    {t("onboarding.track")}
-                  </span>
-                  <select
-                    value={draft.track}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        track: event.target.value as OnboardingTrack,
-                      }))
-                    }
-                    className={selectClass}
-                  >
-                    {ONBOARDING_TRACKS.map((track) => (
-                      <option key={track} value={track}>
-                        {track === "General" ? t("onboarding.general") : track}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {t("onboarding.track")}
+                </span>
+                <select
+                  value={draft.track}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      track: event.target.value as AcademicProfile["track"],
+                    }))
+                  }
+                  className={selectClass}
+                >
+                  {DEPARTMENTS_BY_FACULTY[draft.faculty].map((track) => (
+                    <option key={track} value={track}>
+                      {track} — {t(FACULTY_LABEL_KEY[draft.faculty])}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">

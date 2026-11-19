@@ -173,6 +173,26 @@ const dictionaries = {
       invalidCredentials: "Invalid email or password.", network: "Network error. Please try again.",
       onboarding: "Set up your student profile", faculty: "Faculty", year: "Year", major: "Major",
       next: "Continue", back: "Back", finish: "Finish setup", choose: "Choose an option",
+      emailNotEjust: "Use your E-JUST email (@ejust.edu.eg or @student.ejust.edu.eg).",
+      emailInvalid: "Enter a valid email address.",
+      emailRequired: "Enter your university email.",
+      emailNotVerified: "Verify your university email before signing in.",
+      invalidName: "Enter a name between 2 and 80 characters.",
+      verifyTitle: "Verify your university email",
+      verifySubtitle: "Enter the 6-digit code sent to {email}.",
+      verifyCode: "6-digit verification code",
+      verifyPlaceholder: "000000",
+      verifySubmit: "Verify email",
+      verifyVerifying: "Verifying…",
+      verifyResend: "Resend Code",
+      verifyResendIn: "Resend in {n}s",
+      verifySent: "A new code is on its way.",
+      verifyInvalidCode: "That code is invalid or has expired.",
+      verifyTooMany: "Too many attempts. Request a new code.",
+      verifyFailed: "Could not verify the code. Please try again.",
+      verifyBack: "Back to sign in",
+      verifyCheckInbox: "Check your E-JUST inbox (and spam folder) for the code.",
+      verifyChangeEmail: "Use a different email",
     },
     onboarding: {
       welcome: "Set up your student profile",
@@ -181,7 +201,7 @@ const dictionaries = {
       stepImport: "Import your courses",
       faculty: "Faculty",
       year: "Study year",
-      track: "CSIT track",
+      track: "Department / track",
       section: "Section",
       next: "Continue",
       back: "Back",
@@ -201,6 +221,10 @@ const dictionaries = {
       csit: "Computer Science & IT",
       foe: "Engineering",
       fibh: "Business & Humanities",
+      fop: "Pharmacy / PharmD",
+      bas: "Basic & Applied Sciences",
+      fad: "Art & Design",
+      shared: "Shared / University Requirements",
       general: "General",
     },
     study: {
@@ -236,7 +260,7 @@ const dictionaries = {
       title: "My timetable", subtitle: "Build a schedule that fits your degree and study load.",
       faculty: "Faculty", academicYear: "Academic year", group: "Group", fall: "Fall 2026",
       csit: "CSIT", engineering: "Engineering", business: "Business",
-      firstYear: "1st Year", secondYear: "2nd Year", thirdYear: "3rd Year", fourthYear: "4th Year",
+      firstYear: "1st Year", secondYear: "2nd Year", thirdYear: "3rd Year", fourthYear: "4th Year", fifthYear: "5th Year",
       group1: "Group 1", group2: "Group 2", group3: "Group 3", group4: "Group 4", addCourse: "Add custom course",
       reset: "Clear custom courses", export: "Export .ics", print: "Print",
       exportCalendar: "Export to Calendar (.ics)", section: "Section", track: "Track",
@@ -572,6 +596,26 @@ const dictionaries = {
       invalidCredentials: "البريد أو كلمة المرور غير صحيحة.", network: "خطأ في الشبكة. حاول مرة أخرى.",
       onboarding: "أعد ملفك الطلابي", faculty: "الكلية", year: "السنة", major: "التخصص",
       next: "متابعة", back: "رجوع", finish: "إنهاء الإعداد", choose: "اختر",
+      emailNotEjust: "استخدم بريدك الجامعي (@ejust.edu.eg أو @student.ejust.edu.eg).",
+      emailInvalid: "أدخل بريداً إلكترونياً صحيحاً.",
+      emailRequired: "أدخل بريدك الجامعي.",
+      emailNotVerified: "تحقق من بريدك الجامعي قبل تسجيل الدخول.",
+      invalidName: "أدخل اسماً بين 2 و 80 حرفاً.",
+      verifyTitle: "تحقق من بريدك الجامعي",
+      verifySubtitle: "أدخل الرمز المكوّن من ٦ أرقام المرسل إلى {email}.",
+      verifyCode: "رمز التحقق المكوّن من ٦ أرقام",
+      verifyPlaceholder: "000000",
+      verifySubmit: "تأكيد البريد",
+      verifyVerifying: "جارٍ التحقق…",
+      verifyResend: "إعادة إرسال الرمز",
+      verifyResendIn: "إعادة الإرسال بعد {n} ث",
+      verifySent: "رمز جديد في طريقه إليك.",
+      verifyInvalidCode: "الرمز غير صحيح أو منتهي الصلاحية.",
+      verifyTooMany: "محاولات كثيرة. اطلب رمزاً جديداً.",
+      verifyFailed: "تعذر التحقق من الرمز. حاول مرة أخرى.",
+      verifyBack: "العودة لتسجيل الدخول",
+      verifyCheckInbox: "تحقق من صندوق الوارد الجامعي (ومجلد البريد العشوائي).",
+      verifyChangeEmail: "استخدم بريداً آخر",
     },
     onboarding: {
       welcome: "أعد إعداد ملفك الطلابي",
@@ -580,7 +624,7 @@ const dictionaries = {
       stepImport: "استيراد موادك",
       faculty: "الكلية",
       year: "السنة الدراسية",
-      track: "مسار كلية الحاسوب",
+      track: "القسم / المسار",
       section: "الشعبة",
       next: "متابعة",
       back: "رجوع",
@@ -600,6 +644,10 @@ const dictionaries = {
       csit: "علوم الحاسوب وتكنولوجيا المعلومات",
       foe: "الهندسة",
       fibh: "الأعمال والعلوم الإنسانية",
+      fop: "الصيدلة / دكتوراه الصيدلة",
+      bas: "العلوم الأساسية والتطبيقية",
+      fad: "الفنون والتصميم",
+      shared: "المساقات المشتركة / متطلبات الجامعة",
       general: "عام",
     },
     study: {
@@ -635,7 +683,7 @@ const dictionaries = {
       title: "جدولي الدراسي", subtitle: "أنشئ جدولاً يناسب تخصصك وحملك الدراسي.",
       faculty: "الكلية", academicYear: "السنة الدراسية", group: "المجموعة", fall: "خريف 2026",
       csit: "حاسبات ومعلومات", engineering: "الهندسة", business: "إدارة الأعمال",
-      firstYear: "الفرقة الأولى", secondYear: "الفرقة الثانية", thirdYear: "الفرقة الثالثة", fourthYear: "الفرقة الرابعة",
+      firstYear: "الفرقة الأولى", secondYear: "الفرقة الثانية", thirdYear: "الفرقة الثالثة", fourthYear: "الفرقة الرابعة", fifthYear: "الفرقة الخامسة",
       group1: "المجموعة 1", group2: "المجموعة 2", group3: "المجموعة 3", group4: "المجموعة 4", addCourse: "إضافة مقرر مخصص",
       reset: "حذف المقررات المخصصة", export: "تصدير .ics", print: "طباعة",
       exportCalendar: "تصدير إلى التقويم (.ics)", section: "الشعبة", track: "المسار",
@@ -971,6 +1019,26 @@ const dictionaries = {
       invalidCredentials: "メールまたはパスワードが違います。", network: "ネットワークエラーです。",
       onboarding: "学生プロフィールを設定", faculty: "学部", year: "学年", major: "専攻",
       next: "次へ", back: "戻る", finish: "設定を完了", choose: "選択",
+      emailNotEjust: "E-JUST のメールアドレス（@ejust.edu.eg または @student.ejust.edu.eg）を使用してください。",
+      emailInvalid: "有効なメールアドレスを入力してください。",
+      emailRequired: "大学のメールアドレスを入力してください。",
+      emailNotVerified: "ログイン前に大学メールを確認してください。",
+      invalidName: "名前は2〜80文字で入力してください。",
+      verifyTitle: "大学メールを確認",
+      verifySubtitle: "{email} に送信した6桁のコードを入力してください。",
+      verifyCode: "6桁の確認コード",
+      verifyPlaceholder: "000000",
+      verifySubmit: "メールを確認",
+      verifyVerifying: "確認中…",
+      verifyResend: "コードを再送信",
+      verifyResendIn: "{n}秒後に再送信",
+      verifySent: "新しいコードを送信しました。",
+      verifyInvalidCode: "コードが正しくないか、有効期限が切れています。",
+      verifyTooMany: "試行回数が多すぎます。新しいコードを請求してください。",
+      verifyFailed: "コードを確認できませんでした。もう一度お試しください。",
+      verifyBack: "ログインに戻る",
+      verifyCheckInbox: "大学の受信トレイ（迷惑メールフォルダも）をご確認ください。",
+      verifyChangeEmail: "別のメールアドレスを使用",
     },
     onboarding: {
       welcome: "学生プロフィールを設定",
@@ -979,7 +1047,7 @@ const dictionaries = {
       stepImport: "科目を取り込む",
       faculty: "学部",
       year: "学年",
-      track: "CSIT コース",
+      track: "学科 / コース",
       section: "クラス",
       next: "次へ",
       back: "戻る",
@@ -999,6 +1067,10 @@ const dictionaries = {
       csit: "コンピューターサイエンス・情報技術",
       foe: "工学",
       fibh: "ビジネス・人文科学",
+      fop: "薬学 / PharmD",
+      bas: "基礎・応用科学",
+      fad: "芸術・デザイン",
+      shared: "共通科目 / 大学共通要件",
       general: "一般",
     },
     study: {
@@ -1034,7 +1106,7 @@ const dictionaries = {
       title: "マイ時間割", subtitle: "学部と学習負荷に合わせて時間割を作成します。",
       faculty: "学部", academicYear: "学年", group: "グループ", fall: "2026年秋学期",
       csit: "情報技術", engineering: "工学", business: "経営",
-      firstYear: "1年", secondYear: "2年", thirdYear: "3年", fourthYear: "4年",
+      firstYear: "1年", secondYear: "2年", thirdYear: "3年", fourthYear: "4年", fifthYear: "5年",
       group1: "グループ1", group2: "グループ2", group3: "グループ3", group4: "グループ4", addCourse: "科目を追加",
       reset: "カスタム科目を削除", export: ".icsを書き出す", print: "印刷",
       exportCalendar: "カレンダーに出力 (.ics)", section: "セクション", track: "コース",
@@ -1230,7 +1302,7 @@ export type TranslationKey =
 const LanguageContext = createContext<{
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
 } | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
@@ -1245,9 +1317,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     locale,
     setLocale,
-    t: (key: TranslationKey) => {
+    t: (key: TranslationKey, params?: Record<string, string | number>) => {
       const [group, item] = key.split(".") as [keyof Dictionary, string];
-      return String((dictionaries[locale][group] as Record<string, string>)[item] ?? key);
+      let value = String((dictionaries[locale][group] as Record<string, string>)[item] ?? key);
+      if (params) {
+        for (const [name, replacement] of Object.entries(params)) {
+          value = value.split(`{${name}}`).join(String(replacement));
+        }
+      }
+      return value;
     },
   }), [locale]);
 
