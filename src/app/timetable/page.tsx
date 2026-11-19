@@ -12,6 +12,7 @@ import {
 } from "@/lib/timetable";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import PrintButton from "@/components/PrintButton";
+import RoomBadge from "@/components/RoomBadge";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import {
   ACADEMIC_PROFILE_EVENT,
@@ -541,7 +542,7 @@ export default function TimetablePage() {
                           </div>
                           <p className="mt-1 truncate text-[11px] font-bold">{block.courseCode}</p>
                           <p className="truncate text-[10px] opacity-90">{block.start}–{block.end}</p>
-                          <p className="truncate text-[9px] opacity-80">{block.location}</p>
+                          <RoomBadge location={block.location} tone="solid" className="mt-1 opacity-90" />
                           {block.source === "custom" && (
                             <button
                               type="button"

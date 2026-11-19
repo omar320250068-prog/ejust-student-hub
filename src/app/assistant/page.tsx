@@ -17,6 +17,7 @@ import {
   User,
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
+import RoomBadge from "@/components/RoomBadge";
 
 type LiveFieldKey =
   | "name" | "title" | "department" | "location" | "email" | "officeHours"
@@ -145,6 +146,13 @@ function rowsFor(lookup: LookupKind, payload: Record<string, unknown>): LookupRo
   const key = lookup === "schedule" ? "meetings" : lookup === "office" ? "offices" : lookup;
   const value = payload[key];
   return Array.isArray(value) ? (value as LookupRow[]) : [];
+}
+
+function rowLocation(row: LookupRow): string | null {
+  if (typeof row.location === "string" && row.location.trim()) return row.location;
+  const building = typeof row.building === "string" ? row.building.trim() : "";
+  const room = typeof row.room === "string" ? row.room.trim() : "";
+  return building && room ? `${building} ${room}` : null;
 }
 
 export default function AssistantPage() {
@@ -357,7 +365,9 @@ export default function AssistantPage() {
                                 <dd className="min-w-0 break-words">
                                   {field.key === "status" && (field.value === "yes" || field.value === "no")
                                     ? t(field.value === "yes" ? "assistant.fieldYes" : "assistant.fieldNo")
-                                    : field.value}
+                                    : field.key === "location"
+                                      ? <RoomBadge location={field.value} />
+                                      : field.value}
                                 </dd>
                               </div>
                             ))}
@@ -377,32 +387,38 @@ export default function AssistantPage() {
                     );
                   })}
 
-                  {turn.rows.map((row, index) => (
-                    <article
-                      key={`row-${index}`}
-                      className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 dark:border-emerald-800/50 dark:bg-emerald-500/5"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold">
-                          {String(row.courseCode ?? row.code ?? row.title ?? row.name ?? t("assistant.rowFallback"))}
-                        </p>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-                          <Database size={11} /> {t("assistant.sourceLive")}
-                        </span>
-                      </div>
-                      <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300">
-                        {Object.entries(row)
-                          .filter(([key, value]) => key !== "id" && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
-                          .slice(0, 6)
-                          .map(([key, value]) => (
-                            <div key={key} className="flex gap-1">
-                              <dt className="font-semibold text-slate-500 dark:text-slate-400">{key}:</dt>
-                              <dd>{String(value)}</dd>
-                            </div>
-                          ))}
-                      </dl>
-                    </article>
-                  ))}
+                  {turn.rows.map((row, index) => {
+                    const location = rowLocation(row);
+                    return (
+                      <article
+                        key={`row-${index}`}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 dark:border-emerald-800/50 dark:bg-emerald-500/5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">
+                            {String(row.courseCode ?? row.code ?? row.title ?? row.name ?? t("assistant.rowFallback"))}
+                          </p>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                            <Database size={11} /> {t("assistant.sourceLive")}
+                          </span>
+                        </div>
+                        {location && (
+                          <div className="mt-1.5"><RoomBadge location={location} /></div>
+                        )}
+                        <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+                          {Object.entries(row)
+                            .filter(([key, value]) => key !== "id" && !(location && ["location", "building", "room"].includes(key)) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
+                            .slice(0, 6)
+                            .map(([key, value]) => (
+                              <div key={key} className="flex gap-1">
+                                <dt className="font-semibold text-slate-500 dark:text-slate-400">{key}:</dt>
+                                <dd>{String(value)}</dd>
+                              </div>
+                            ))}
+                        </dl>
+                      </article>
+                    );
+                  })}
 
                   {turn.quota && (
                     <p className="text-[10px] text-slate-400">

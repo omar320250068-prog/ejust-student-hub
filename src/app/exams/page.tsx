@@ -26,6 +26,7 @@ import { FACULTIES, inferFacultyFromCourseCode, isFaculty, type Faculty } from "
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import ExamImportModal from "@/components/ExamImportModal";
+import RoomBadge from "@/components/RoomBadge";
 import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
 
 const STORAGE_KEY = "ejust-exams-v1";
@@ -396,7 +397,12 @@ export default function ExamsPage() {
             <p className="mt-2 flex items-center gap-1 text-xs text-gray-500">
               <CalendarDays size={12} />
               {formatExamDate(exam.date)}
-              {hub && hub.location !== "TBA" ? ` · ${hub.location}` : ""}
+              {hub && hub.location !== "TBA" && (
+                <>
+                  <span aria-hidden>·</span>
+                  <RoomBadge location={hub.location} />
+                </>
+              )}
             </p>
             {!hub && (
               <button
