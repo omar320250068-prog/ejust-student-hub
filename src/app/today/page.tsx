@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import type { HubNoticeCategory, LiveNotice } from "@/lib/hub-feed";
-import { inferFacultyFromCourseCode, isFaculty } from "@/lib/faculty";
+import { inferFacultyFromCourseCode, isFaculty, type Faculty } from "@/lib/faculty";
+import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
 import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
 import { computeStats, formatGpa, type Course } from "@/lib/gpa";
 import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
@@ -19,6 +20,7 @@ import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafe
 import CampusBackground from "@/components/CampusBackground";
 import MeritPanel from "@/components/MeritPanel";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
+import OnboardingWizard from "@/components/OnboardingWizard";
 
 const KEYS = {
   timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
@@ -56,6 +58,7 @@ export default function TodayPage() {
   const [notices, setNotices] = useState<LiveNotice[]>([]);
   const [noticesAvailable, setNoticesAvailable] = useState(true);
   const [noticesLoading, setNoticesLoading] = useState(true);
+  const [profileFaculty, setProfileFaculty] = useState<Faculty | null>(null);
   const synced = useSyncedCourses();
 
   useEffect(() => {
@@ -72,9 +75,21 @@ export default function TodayPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // A wizard-saved profile is the preferred faculty source; fall back to the
+  // faculty inferred from the student's saved timetable blocks.
+  useEffect(() => {
+    const applyProfile = () => {
+      const profile = readAcademicProfile();
+      setProfileFaculty(profile ? toHubFaculty(profile.faculty) : null);
+    };
+    applyProfile();
+    window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
+    return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
+  }, []);
+
   const faculty = useMemo(
-    () => snapshot?.timetable.find((block) => block.faculty)?.faculty ?? "CSIT",
-    [snapshot]
+    () => profileFaculty ?? snapshot?.timetable.find((block) => block.faculty)?.faculty ?? "CSIT",
+    [profileFaculty, snapshot]
   );
 
   // Active notices are scoped to the viewer's faculty and synced courses by the API.
@@ -160,6 +175,7 @@ export default function TodayPage() {
         </motion.section>
 
         <SisSyncGuide />
+        <OnboardingWizard />
 
         <MeritPanel className="mt-6" />
 

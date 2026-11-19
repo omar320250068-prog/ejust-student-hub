@@ -26,6 +26,7 @@ import { FACULTIES, inferFacultyFromCourseCode, isFaculty, type Faculty } from "
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import ExamImportModal from "@/components/ExamImportModal";
+import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
 
 const STORAGE_KEY = "ejust-exams-v1";
 const FACULTY_KEY = "ejust:faculty";
@@ -96,6 +97,8 @@ export default function ExamsPage() {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         const savedFaculty = window.localStorage.getItem(FACULTY_KEY);
         if (isFaculty(savedFaculty)) setFaculty(savedFaculty);
+        const shared = readAcademicProfile();
+        if (shared) setFaculty(toHubFaculty(shared.faculty));
         if (raw) {
           const saved = JSON.parse(raw) as { exams?: Exam[]; dailyHours?: number };
           if (Array.isArray(saved.exams)) setExams(saved.exams);
@@ -106,6 +109,15 @@ export default function ExamsPage() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const applyProfile = () => {
+      const shared = readAcademicProfile();
+      if (shared) setFaculty(toHubFaculty(shared.faculty));
+    };
+    window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
+    return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
   }, []);
 
   // Live exams are the source of truth; local exams are the student's own additions.

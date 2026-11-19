@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs"
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

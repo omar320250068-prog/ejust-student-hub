@@ -89,7 +89,9 @@ function normalizeExamType(value: unknown): ImportedExamType {
 }
 
 const COURSE_RE = /\b([A-Za-z]{3})\s*[-.]?\s*(\d{2,4})\b/;
-const DATE_RE = /(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{1,2}\s+[A-Za-z]+\.?\s+\d{4})/;
+// The word boundary stops "ECE201 Quiz 2026-12-15" from being read as the
+// named date "01 Quiz 2026" before the ISO date is reached.
+const DATE_RE = /(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\b\d{1,2}\s+[A-Za-z]+\.?\s+\d{4})/;
 const TIME_RE = /(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:-|–|to)\s*(\d{1,2}:\d{2}(?::\d{2})?)|(\d{1,2}:\d{2}(?::\d{2})?)/i;
 
 /** Deterministic fallback parser for schedule text pasted from email or LMS. */

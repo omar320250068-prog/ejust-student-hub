@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { extractAiJson } from "@/lib/ai-extract";
 import {
   importedExamKey,
   normalizeImportedRows,
@@ -7,14 +8,17 @@ import {
 } from "@/lib/exam-import";
 
 const MAX_TEXT_LENGTH = 12_000;
-const AI_TIMEOUT_MS = 6_000;
+const EXAM_SYSTEM_PROMPT =
+  "Extract exam schedules from university email text. Return only a JSON object " +
+  "shaped as {\"rows\":[{\"courseCode\":\"CSC341\",\"examType\":\"MIDTERM\"," +
+  "\"examDate\":\"2026-12-13\",\"startTime\":\"10:00\",\"endTime\":\"12:00\"," +
+  "\"building\":\"B\",\"room\":\"B4\"}]}. Allowed examType values are MIDTERM, " +
+  "FINAL and QUIZ (default MIDTERM). Dates must be YYYY-MM-DD and times HH:MM " +
+  "(24-hour). Skip lines without both a course code and a date. Use TBA when a " +
+  "location is missing. No markdown or commentary.";
 
 interface ParseRequestBody {
   text?: unknown;
-}
-
-interface AiResponse {
-  choices?: { message?: { content?: string } }[];
 }
 
 function mergeRows(aiRows: ImportedExamRow[], fallbackRows: ImportedExamRow[]): ImportedExamRow[] {
@@ -30,55 +34,17 @@ function mergeRows(aiRows: ImportedExamRow[], fallbackRows: ImportedExamRow[]): 
 }
 
 async function extractWithAi(text: string): Promise<ImportedExamRow[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return [];
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_EXAM_MODEL || "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "Extract exam schedules from university email text. Return only a JSON object " +
-              "shaped as {\"rows\":[{\"courseCode\":\"CSC341\",\"examType\":\"MIDTERM\"," +
-              "\"examDate\":\"2026-12-13\",\"startTime\":\"10:00\",\"endTime\":\"12:00\"," +
-              "\"building\":\"B\",\"room\":\"B4\"}]}. Allowed examType values are MIDTERM, " +
-              "FINAL and QUIZ (default MIDTERM). Dates must be YYYY-MM-DD and times HH:MM " +
-              "(24-hour). Skip lines without both a course code and a date. Use TBA when a " +
-              "location is missing. No markdown or commentary.",
-          },
-          { role: "user", content: text },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!response.ok) return [];
-
-    const payload = (await response.json()) as AiResponse;
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) return [];
-    const parsed = JSON.parse(content) as unknown;
-    const rows = Array.isArray(parsed)
-      ? parsed
-      : (parsed as { rows?: unknown }).rows ?? [];
-    return normalizeImportedRows(rows as Record<string, unknown>[]);
-  } catch {
-    // AI is best-effort; the deterministic parser always provides a usable result.
-    return [];
-  } finally {
-    clearTimeout(timeout);
-  }
+  const parsed = await extractAiJson({
+    system: EXAM_SYSTEM_PROMPT,
+    text,
+    modelEnv: "OPENAI_EXAM_MODEL",
+  });
+  if (parsed === null) return [];
+  const rows = Array.isArray(parsed)
+    ? parsed
+    : (parsed as { rows?: unknown }).rows ?? [];
+  // AI is best-effort; the deterministic parser always provides a usable result.
+  return normalizeImportedRows(rows as Record<string, unknown>[]);
 }
 
 /** Parse pasted schedule text into reviewable exam rows. */

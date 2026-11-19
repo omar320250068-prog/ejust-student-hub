@@ -51,6 +51,12 @@ export function inferFacultyFromCourseCode(code: string | null | undefined): Fac
   return PREFIX_FACULTY[value.slice(0, 3)] ?? "SHARED";
 }
 
+/** True when the code starts with a recognized E-JUST department prefix. */
+export function isKnownCoursePrefix(code: string | null | undefined): boolean {
+  const value = normalized(code);
+  return value.length >= 3 && PREFIX_FACULTY[value.slice(0, 3)] !== undefined;
+}
+
 /** Stable short label used by faculty badges and selectors. */
 export function facultyLabel(faculty: Faculty): string {
   return faculty;

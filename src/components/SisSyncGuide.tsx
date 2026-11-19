@@ -20,7 +20,8 @@ import { useLanguage } from "@/lib/i18n";
 import type { ParsedSisCourse, SisSummaryMetadata, SisTableType } from "@/lib/sis-parser";
 import type { SyncedCourse, SyncSummary } from "@/lib/sis-sync";
 
-const STORAGE_KEY = "ejust:sis-sync";
+export const SIS_SYNC_STORAGE_KEY = "ejust:sis-sync";
+const STORAGE_KEY = SIS_SYNC_STORAGE_KEY;
 const SYNC_EVENT = "ejust:sis-synced";
 const SYNC_TOKEN_MESSAGE = "EJUST_HUB_SYNC_TOKEN";
 const API_URL = "/api/student/sync";
@@ -82,7 +83,8 @@ export function useSyncedCourses(): SisSyncState {
   return state;
 }
 
-function persist(state: SisSyncState) {
+/** Shared write access so the onboarding wizard can persist Smart Paste imports. */
+export function persistSisSyncState(state: SisSyncState) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: state }));
   broadcastSyncToken(state.syncToken);
@@ -187,7 +189,7 @@ export function SisSyncModal({
       .then((data: SisSyncState | null) => {
         if (cancelled || !data || !Array.isArray(data.courses)) return;
         setState(data);
-        persist(data);
+        persistSisSyncState(data);
         setRows((current) => (current.length > 0 ? current : data.courses.map(toEditableRow)));
       })
       .catch(() => {
@@ -283,7 +285,7 @@ export function SisSyncModal({
         syncedAt: data.syncedAt,
       };
       setState(next);
-      persist(next);
+      persistSisSyncState(next);
       setRows(next.courses.map(toEditableRow));
       setMessage({ text: t("sis.success"), ok: true });
     } catch {

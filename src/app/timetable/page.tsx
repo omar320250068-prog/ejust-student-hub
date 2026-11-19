@@ -13,6 +13,13 @@ import {
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import PrintButton from "@/components/PrintButton";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
+import {
+  ACADEMIC_PROFILE_EVENT,
+  readAcademicProfile,
+  toTimetableFaculty,
+  toTimetableGroup,
+  toTimetableTrack,
+} from "@/lib/onboarding";
 
 type Faculty = "CSIT" | "Engineering" | "Business";
 type AcademicYear = 1 | 2 | 3 | 4;
@@ -214,6 +221,26 @@ export default function TimetablePage() {
   const [error, setError] = useState("");
   const synced = useSyncedCourses();
   const [onlySynced, setOnlySynced] = useState(false);
+
+  // The onboarding wizard writes the shared profile; adopt it here so the
+  // timetable column and section filters are personalized immediately.
+  useEffect(() => {
+    const applyProfile = () => {
+      const shared = readAcademicProfile();
+      if (!shared) return;
+      setProfile((current) => ({
+        ...current,
+        faculty: toTimetableFaculty(shared.faculty),
+        year: shared.year,
+        group: toTimetableGroup(shared.group),
+        track: toTimetableTrack(shared.track),
+        section: shared.section,
+      }));
+    };
+    applyProfile();
+    window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
+    return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
+  }, []);
 
   const columnKey = useMemo(() => columnKeyFor(profile), [profile]);
 
