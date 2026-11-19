@@ -33,6 +33,8 @@ export interface OnboardingGate {
   profile: AcademicProfile | null;
   syncedCourseCount: number;
   dismissed: boolean;
+  /** Fresh-account arrival via `/today?welcome=1` overrides the empty-state gate. */
+  welcome?: boolean;
 }
 
 export const ACADEMIC_PROFILE_KEY = "ejust:academic-profile";
@@ -117,14 +119,17 @@ export function markOnboardingDismissed(userId: string): void {
   window.localStorage.setItem(dismissalKey(userId), "1");
 }
 
+/** Wipe a stale dismissal flag when a brand new account is registered. */
+export function clearOnboardingDismissed(userId: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(dismissalKey(userId));
+}
+
 /** First visit: authenticated, no profile, no SIS courses, not dismissed. */
 export function shouldShowOnboarding(gate: OnboardingGate): boolean {
-  return (
-    gate.authenticated &&
-    !gate.dismissed &&
-    gate.profile === null &&
-    gate.syncedCourseCount === 0
-  );
+  if (!gate.authenticated) return false;
+  if (gate.welcome) return true;
+  return !gate.dismissed && gate.profile === null && gate.syncedCourseCount === 0;
 }
 
 /** The timetable page uses friendlier faculty/group labels than the hub feed. */

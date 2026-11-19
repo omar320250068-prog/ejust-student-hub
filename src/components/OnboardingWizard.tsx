@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ArrowLeft, ArrowRight, Check, ClipboardPaste, ExternalLink, GraduationCap, Loader2, Sparkles, X,
@@ -70,6 +71,10 @@ function storedSyncedCourseCount(): number {
 export default function OnboardingWizard() {
   const { locale, t } = useLanguage();
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const welcomeRequested = searchParams.get("welcome") === "1";
   const synced = useSyncedCourses();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<0 | 1>(0);
@@ -92,16 +97,31 @@ export default function OnboardingWizard() {
         profile: readAcademicProfile(),
         syncedCourseCount: storedSyncedCourseCount(),
         dismissed: isOnboardingDismissed(userId),
+        welcome: welcomeRequested,
       });
-      if (show) setOpen(true);
+      if (show) {
+        // A fresh account always starts at Step 1 (faculty / year / track).
+        if (welcomeRequested) setStep(0);
+        setOpen(true);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [status, userId]);
+  }, [status, userId, welcomeRequested]);
+
+  /** Drop only the `welcome` flag, preserving any other query parameters. */
+  const clearWelcomeParam = useCallback(() => {
+    if (!welcomeRequested) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("welcome");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams, welcomeRequested]);
 
   const dismiss = useCallback(() => {
     if (userId) markOnboardingDismissed(userId);
     setOpen(false);
-  }, [userId]);
+    clearWelcomeParam();
+  }, [userId, clearWelcomeParam]);
 
   useEffect(() => {
     if (!open) return;

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  clearOnboardingDismissed,
+  dismissalKey,
   normalizeAcademicProfile,
   shouldShowOnboarding,
   toTimetableFaculty,
@@ -47,6 +49,24 @@ test("normalizeAcademicProfile rejects unusable profiles", () => {
   assert.equal(normalizeAcademicProfile({ ...VALID, track: "BIO" }).track, "General");
 });
 
+test("clearOnboardingDismissed removes the stale per-user dismissal flag", () => {
+  const store = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => store.get(key) ?? null,
+      setItem: (key, value) => store.set(key, value),
+      removeItem: (key) => store.delete(key),
+    },
+  };
+  try {
+    store.set(dismissalKey("fresh-account"), "1");
+    clearOnboardingDismissed("fresh-account");
+    assert.equal(store.has(dismissalKey("fresh-account")), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("shouldShowOnboarding requires authentication, empty state and no dismissal", () => {
   assert.equal(shouldShowOnboarding({
     authenticated: true, profile: null, syncedCourseCount: 0, dismissed: false,
@@ -62,6 +82,15 @@ test("shouldShowOnboarding requires authentication, empty state and no dismissal
   }), false);
   assert.equal(shouldShowOnboarding({
     authenticated: true, profile: null, syncedCourseCount: 0, dismissed: true,
+  }), false);
+});
+
+test("welcome flag opens onboarding for a fresh account but never for guests", () => {
+  assert.equal(shouldShowOnboarding({
+    authenticated: true, profile: VALID, syncedCourseCount: 3, dismissed: true, welcome: true,
+  }), true);
+  assert.equal(shouldShowOnboarding({
+    authenticated: false, profile: null, syncedCourseCount: 0, dismissed: false, welcome: true,
   }), false);
 });
 

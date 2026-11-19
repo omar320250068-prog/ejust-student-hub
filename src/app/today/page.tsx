@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -175,7 +175,9 @@ export default function TodayPage() {
         </motion.section>
 
         <SisSyncGuide />
-        <OnboardingWizard />
+        <Suspense fallback={null}>
+          <OnboardingWizard />
+        </Suspense>
 
         <MeritPanel className="mt-6" />
 

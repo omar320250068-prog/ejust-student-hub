@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import { clearOnboardingDismissed } from "@/lib/onboarding";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -47,6 +48,7 @@ export default function SignUpPage() {
 
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
+        user?: { id?: string };
       };
 
       if (!response.ok) {
@@ -54,13 +56,17 @@ export default function SignUpPage() {
         return;
       }
 
+      // A recycled browser profile must never inherit a previous student's
+      // "skip onboarding" choice for this freshly created account.
+      if (payload.user?.id) clearOnboardingDismissed(payload.user.id);
+
       const result = await signIn("credentials", {
         email,
         password: form.password,
         redirect: false,
       });
 
-      router.push(result?.error ? "/login" : "/contribute");
+      router.push(result?.error ? "/login" : "/today?welcome=1");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
