@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs"
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs tests/rate-limit.test.mjs tests/password-reset.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -21,7 +21,7 @@
     "framer-motion": "^14.7.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.60.0",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "next-auth": "^5.0.0-beta.30",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.13",
@@ -45,7 +45,7 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -21,6 +21,7 @@ export const AUTH_ERROR_CODES = [
   "invalid_password",
   "invalid_request",
   "verify_failed",
+  "rate_limited",
 ] as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
@@ -101,6 +102,11 @@ const TEXT: Record<AuthErrorCode, Record<Locale, string>> = {
     ar: "تعذر التحقق من الرمز. حاول مرة أخرى.",
     ja: "コードを確認できませんでした。もう一度お試しください。",
   },
+  rate_limited: {
+    en: "Too many requests. Please wait a moment and try again.",
+    ar: "طلبات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
+    ja: "リクエストが多すぎます。しばらくしてからお試しください。",
+  },
 };
 
 /** String keys (typed in the UI as `TranslationKey`) for each error code. */
@@ -120,6 +126,7 @@ export const AUTH_ERROR_TRANSLATION_KEY: Record<AuthErrorCode, string> = {
   invalid_password: "auth.invalidPassword",
   invalid_request: "auth.verifyFailed",
   verify_failed: "auth.verifyFailed",
+  rate_limited: "auth.rateLimited",
 };
 
 export function isAuthErrorCode(value: unknown): value is AuthErrorCode {

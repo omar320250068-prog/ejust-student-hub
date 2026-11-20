@@ -13,6 +13,7 @@ import {
 } from "@/lib/rag/db-retriever";
 import { consumeAiQuota } from "@/lib/merit-server";
 import { getViewer } from "@/lib/permissions";
+import { enforceRateLimit } from "@/lib/rate-limit-api";
 
 const OFFICE_INTENT = /office|room|\bdr\.?\b|\bdoctor\b|\bprof(?:essor)?\b|مكتب|دكتور|د\./i;
 const COURSE_INTENT = /\b(CSC|AID|CNC|BIF|LRA|MTH|PHY|FR|ECE|CSE|ACM)\b\s*\d{0,3}\b/i;
@@ -161,8 +162,13 @@ export async function GET(request: Request) {
     });
   }
 
-  let quota: { used: number; limit: number } | null = null;
+  // Per-IP-and-user burst limit, in addition to the per-tier daily quota.
+  // Anonymous callers are still bounded by the IP bucket.
   const viewer = await getViewer();
+  const limited = await enforceRateLimit(request, "assistant", { userId: viewer?.userId });
+  if (limited) return limited;
+
+  let quota: { used: number; limit: number } | null = null;
 
   if (viewer) {
     const usage = await consumeAiQuota(

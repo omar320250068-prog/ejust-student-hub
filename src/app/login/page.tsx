@@ -112,6 +112,14 @@ export default function LoginPage() {
                   className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-sm text-white outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-950"
                 />
               </label>
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-cyan-200 hover:text-white"
+                >
+                  {t("auth.forgotPassword")}
+                </Link>
+              </div>
               {error && (
                 <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
                   {error}

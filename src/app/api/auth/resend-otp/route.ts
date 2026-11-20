@@ -3,6 +3,7 @@ import { authErrorMessage, type AuthErrorCode } from "@/lib/auth-messages";
 import { OTP_RESEND_COOLDOWN_MS, validateEjustEmail } from "@/lib/email-otp";
 import { isUserVerified, issueOtp } from "@/lib/email-otp-store";
 import { sendVerificationEmail } from "@/lib/mailer";
+import { enforceRateLimit } from "@/lib/rate-limit-api";
 
 function fail(code: AuthErrorCode, status: number, extra?: Record<string, unknown>) {
   return NextResponse.json(
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const limited = await enforceRateLimit(request, "otpSend", { email: normalizedEmail });
+  if (limited) return limited;
 
   try {
     // Already-verified or unknown accounts return success without sending, so

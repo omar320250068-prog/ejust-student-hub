@@ -4,6 +4,7 @@ import { authErrorMessage, type AuthErrorCode } from "@/lib/auth-messages";
 import { isOtpFormat, validateEjustEmail } from "@/lib/email-otp";
 import { createOtpGrant } from "@/lib/email-otp-grant";
 import { markEmailVerified, verifyOtp } from "@/lib/email-otp-store";
+import { enforceRateLimit } from "@/lib/rate-limit-api";
 
 function fail(code: AuthErrorCode, status: number) {
   return NextResponse.json({ error: code, message: authErrorMessage(code) }, { status });
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   if (!isOtpFormat(code)) return fail("invalid_code", 400);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const limited = await enforceRateLimit(request, "otpVerify", { email: normalizedEmail });
+  if (limited) return limited;
 
   let result: Awaited<ReturnType<typeof verifyOtp>>;
   try {

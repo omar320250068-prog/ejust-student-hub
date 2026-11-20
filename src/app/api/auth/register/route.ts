@@ -8,9 +8,8 @@ import { authErrorMessage, type AuthErrorCode } from "@/lib/auth-messages";
 import { validateEjustEmail } from "@/lib/email-otp";
 import { ensureGrandfathered, issueOtp } from "@/lib/email-otp-store";
 import { sendVerificationEmail } from "@/lib/mailer";
-
-const MIN_PASSWORD_LENGTH = 8;
-const MAX_PASSWORD_BYTES = 72;
+import { enforceRateLimit } from "@/lib/rate-limit-api";
+import { isPasswordValid } from "@/lib/password-policy";
 
 function fail(code: AuthErrorCode, status: number, extra?: Record<string, unknown>) {
   return NextResponse.json(
@@ -20,6 +19,9 @@ function fail(code: AuthErrorCode, status: number, extra?: Record<string, unknow
 }
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, "register");
+  if (limited) return limited;
+
   let payload: unknown;
 
   try {
@@ -42,18 +44,15 @@ export async function POST(request: Request) {
   if (emailCheck === "not-ejust") return fail("email_not_ejust", 400);
   if (emailCheck !== "ok") return fail("invalid_email", 400);
 
-  if (
-    typeof password !== "string" ||
-    password.length < MIN_PASSWORD_LENGTH ||
-    Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES
-  ) {
-    return fail("invalid_password", 400);
-  }
+  if (!isPasswordValid(password)) return fail("invalid_password", 400);
 
   const selectedAccountType = parseAccountType(accountType);
   if (!selectedAccountType) return fail("invalid_request", 400);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const otpLimited = await enforceRateLimit(request, "otpSend", { email: normalizedEmail });
+  if (otpLimited) return otpLimited;
+
   const roleFields = registrationRoleFields(selectedAccountType);
 
   try {

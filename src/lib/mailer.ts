@@ -1,12 +1,12 @@
 /**
- * Outbound mail for email verification.
+ * Outbound mail for E-JUST Hub OTPs (email verification and password reset).
  *
  * Provider order: SMTP -> Gmail API -> Resend. SMTP is preferred whenever
  * SMTP_HOST and EMAIL_FROM are configured, so any student-domain recipient can
  * receive a code without the Resend sandbox restriction. Gmail API and Resend
  * remain as fallbacks. In development, when no provider is configured we log
- * the code instead of failing so signup remains testable. In production, with
- * no working provider, callers get an explicit failure and should respond 503
+ * the code instead of failing so flows remain testable. In production, with no
+ * working provider, callers get an explicit failure and should respond 503
  * rather than silently "sending" a code nobody received.
  */
 import { randomUUID } from "node:crypto";
@@ -16,24 +16,34 @@ export type MailResult =
   | { ok: true; provider: "resend" | "smtp" | "gmail" | "dev" }
   | { ok: false; reason: "unavailable" };
 
-const SUBJECT = "Your E-JUST Hub verification code";
-const MAIL_TIMEOUT_MS = 10_000;
+export type OtpPurpose = "verification" | "password-reset";
 
-function textBody(code: string): string {
-  return (
-    `Your E-JUST Hub verification code is ${code}.\n\n` +
-    `It expires in 10 minutes. If you did not request it, you can ignore this email.`
-  );
+interface MailContent {
+  subject: string;
+  text: string;
+  html: string;
 }
 
-function htmlBody(code: string): string {
-  return (
-    `<div style="font-family:Arial,sans-serif;line-height:1.6">` +
-    `<p>Your E-JUST Hub verification code is:</p>` +
-    `<p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>` +
-    `<p>It expires in 10 minutes. If you did not request it, you can ignore this email.</p>` +
-    `</div>`
-  );
+const MAIL_TIMEOUT_MS = 10_000;
+
+function mailContent(code: string, purpose: OtpPurpose): MailContent {
+  const reset = purpose === "password-reset";
+  const label = reset ? "password reset" : "verification";
+  const subject = reset
+    ? "Reset your E-JUST Hub password"
+    : "Your E-JUST Hub verification code";
+  return {
+    subject,
+    text:
+      `Your E-JUST Hub ${label} code is ${code}.\n\n` +
+      `It expires in 10 minutes. If you did not request it, you can ignore this email.`,
+    html:
+      `<div style="font-family:Arial,sans-serif;line-height:1.6">` +
+      `<p>Your E-JUST Hub ${label} code is:</p>` +
+      `<p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>` +
+      `<p>It expires in 10 minutes. If you did not request it, you can ignore this email.</p>` +
+      `</div>`,
+  };
 }
 
 /** RFC 2047 encode non-ASCII header values (e.g. an Arabic display name). */
@@ -57,12 +67,12 @@ function base64MimeBody(value: string): string {
   return Buffer.from(value, "utf8").toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? "";
 }
 
-function gmailMimeMessage(to: string, code: string): string {
+function gmailMimeMessage(to: string, content: MailContent): string {
   const boundary = `----=_EjustHub_${randomUUID()}`;
   return [
     `From: ${gmailFromHeader()}`,
     `To: ${to}`,
-    `Subject: ${encodeMimeHeader(SUBJECT)}`,
+    `Subject: ${encodeMimeHeader(content.subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -70,12 +80,12 @@ function gmailMimeMessage(to: string, code: string): string {
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "",
-    base64MimeBody(textBody(code)),
+    base64MimeBody(content.text),
     `--${boundary}`,
     "Content-Type: text/html; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "",
-    base64MimeBody(htmlBody(code)),
+    base64MimeBody(content.html),
     `--${boundary}--`,
     "",
   ].join("\r\n");
@@ -106,7 +116,7 @@ function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
   });
 }
 
-async function sendViaResend(to: string, code: string): Promise<void> {
+async function sendViaResend(to: string, content: MailContent): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY!.trim();
   const response = await withTimeout(
     fetch("https://api.resend.com/emails", {
@@ -118,9 +128,9 @@ async function sendViaResend(to: string, code: string): Promise<void> {
       body: JSON.stringify({
         from: process.env.EMAIL_FROM?.trim() || "E-JUST Hub <onboarding@resend.dev>",
         to: [to],
-        subject: SUBJECT,
-        text: textBody(code),
-        html: htmlBody(code),
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
       }),
       cache: "no-store",
     }),
@@ -159,7 +169,7 @@ function smtpConfig(): SmtpConfig | null {
   };
 }
 
-async function sendViaSmtp(cfg: SmtpConfig, to: string, code: string): Promise<void> {
+async function sendViaSmtp(cfg: SmtpConfig, to: string, content: MailContent): Promise<void> {
   const transport = nodemailer.createTransport({
     host: cfg.host,
     port: cfg.port,
@@ -175,9 +185,9 @@ async function sendViaSmtp(cfg: SmtpConfig, to: string, code: string): Promise<v
       transport.sendMail({
         from: cfg.from,
         to,
-        subject: SUBJECT,
-        text: textBody(code),
-        html: htmlBody(code),
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
       }),
       "SMTP send timed out"
     );
@@ -218,7 +228,7 @@ async function gmailAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-async function sendViaGmail(to: string, code: string): Promise<void> {
+async function sendViaGmail(to: string, content: MailContent): Promise<void> {
   const accessToken = await gmailAccessToken();
   const response = await withTimeout(
     fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages", {
@@ -228,7 +238,7 @@ async function sendViaGmail(to: string, code: string): Promise<void> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        raw: Buffer.from(gmailMimeMessage(to, code), "utf8").toString("base64url"),
+        raw: Buffer.from(gmailMimeMessage(to, content), "utf8").toString("base64url"),
       }),
       cache: "no-store",
     }),
@@ -237,14 +247,20 @@ async function sendViaGmail(to: string, code: string): Promise<void> {
   if (!response.ok) throw gmailApiError("send", response.status, await response.text());
 }
 
-export async function sendVerificationEmail(email: string, code: string): Promise<MailResult> {
+/** Send an OTP with copy that matches its purpose. */
+export async function sendOtpEmail(
+  email: string,
+  code: string,
+  purpose: OtpPurpose = "verification"
+): Promise<MailResult> {
+  const content = mailContent(code, purpose);
   const failures: string[] = [];
 
   const smtp = smtpConfig();
   if (smtp) {
     try {
-      await sendViaSmtp(smtp, email, code);
-      console.info("[mailer] OTP delivered via smtp");
+      await sendViaSmtp(smtp, email, content);
+      console.info(`[mailer] ${purpose} OTP delivered via smtp`);
       return { ok: true, provider: "smtp" };
     } catch (error) {
       const message = (error as Error).message;
@@ -255,8 +271,8 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
   if (gmailConfigured()) {
     try {
-      await sendViaGmail(email, code);
-      console.info("[mailer] OTP delivered via gmail");
+      await sendViaGmail(email, content);
+      console.info(`[mailer] ${purpose} OTP delivered via gmail`);
       return { ok: true, provider: "gmail" };
     } catch (error) {
       const message = (error as Error).message;
@@ -267,8 +283,8 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
   if (process.env.RESEND_API_KEY?.trim()) {
     try {
-      await sendViaResend(email, code);
-      console.info("[mailer] OTP delivered via resend");
+      await sendViaResend(email, content);
+      console.info(`[mailer] ${purpose} OTP delivered via resend`);
       return { ok: true, provider: "resend" };
     } catch (error) {
       const message = (error as Error).message;
@@ -278,10 +294,19 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   }
 
   if (process.env.NODE_ENV !== "production") {
-    console.info(`[mailer][dev] verification code for ${email}: ${code}`);
+    console.info(`[mailer][dev] ${purpose} code for ${email}: ${code}`);
     return { ok: true, provider: "dev" };
   }
 
-  console.error("[mailer] no verification email provider succeeded", failures);
+  console.error(`[mailer] no ${purpose} email provider succeeded`, failures);
   return { ok: false, reason: "unavailable" };
+}
+
+/** Backwards-compatible wrapper for the signup/login verification flow. */
+export function sendVerificationEmail(email: string, code: string): Promise<MailResult> {
+  return sendOtpEmail(email, code, "verification");
+}
+
+export function sendPasswordResetEmail(email: string, code: string): Promise<MailResult> {
+  return sendOtpEmail(email, code, "password-reset");
 }
