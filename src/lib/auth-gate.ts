@@ -27,7 +27,7 @@ export function isPublicAsset(pathname: string): boolean {
   if (pathname.startsWith("/api/")) return false;
   if (/^\/_next(?:\/|$)/.test(pathname)) return true;
   if (/^\/(?:favicon\.ico|manifest\.json|robots\.txt|sitemap\.xml)$/.test(pathname)) return true;
-  if (/^\/(?:icons|images|fonts)\//.test(pathname)) return true;
+  if (/^\/(?:downloads|icons|images|fonts)\//.test(pathname)) return true;
   return /\.(?:svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|map|txt)$/.test(pathname);
 }
 

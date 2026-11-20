@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
   Check,
-  ChevronDown,
   ClipboardPaste,
   Copy,
   Download,
@@ -13,6 +13,7 @@ import {
   Info,
   Loader2,
   RefreshCw,
+  Smartphone,
   Sparkles,
   X,
 } from "lucide-react";
@@ -329,6 +330,12 @@ export function SisSyncModal({
     },
   ];
 
+  const installSteps = [
+    { number: 1, detail: t("sis.install1"), icon: <Download size={16} /> },
+    { number: 2, detail: t("sis.install2"), icon: <ExternalLink size={16} /> },
+    { number: 3, detail: t("sis.install3"), icon: <RefreshCw size={16} /> },
+  ];
+
   return (
     <div
       className="print:hidden fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
@@ -572,12 +579,12 @@ export function SisSyncModal({
           </p>
         )}
 
-        {/* Extension + token */}
+        {/* Extension install + sync guide */}
         <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Info size={15} className="text-cyan-600 dark:text-cyan-300" />
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">{t("sis.extension")}</p>
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">{t("sis.install")}</p>
             </div>
             <a
               href={EXTENSION_ZIP}
@@ -590,8 +597,46 @@ export function SisSyncModal({
           </div>
           <p className="mb-3 text-[11px] text-slate-500">{t("sis.extensionDetail")}</p>
 
+          <ol className="mb-3 grid gap-2 sm:grid-cols-3">
+            {installSteps.map((step) => (
+              <li
+                key={step.number}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/60"
+              >
+                <div className="mb-1.5 flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
+                  <span className="grid size-6 place-items-center rounded-full bg-cyan-600 text-[11px] font-bold text-white">
+                    {step.number}
+                  </span>
+                  {step.icon}
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{step.detail}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mb-3 rounded-lg border border-dashed border-cyan-200 bg-cyan-50/60 p-2.5 text-[11px] text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-100">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <Smartphone size={13} />
+              {t("sis.mobileFallback")}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Link
+                href="/timetable"
+                className="rounded-lg bg-white px-2.5 py-1 font-semibold text-cyan-700 ring-1 ring-cyan-200 hover:bg-cyan-50 dark:bg-slate-900 dark:text-cyan-200 dark:ring-cyan-800"
+              >
+                {t("sis.mobileTimetable")}
+              </Link>
+              <Link
+                href="/gpa"
+                className="rounded-lg bg-white px-2.5 py-1 font-semibold text-cyan-700 ring-1 ring-cyan-200 hover:bg-cyan-50 dark:bg-slate-900 dark:text-cyan-200 dark:ring-cyan-800"
+              >
+                {t("sis.mobileGpa")}
+              </Link>
+            </div>
+          </div>
+
           {state.syncToken && (
-            <div className="mb-3">
+            <div>
               <p className="mb-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">{t("sis.token")}</p>
               <div className="flex gap-2">
                 <input
@@ -612,18 +657,6 @@ export function SisSyncModal({
               <p className="mt-1 text-[10px] text-slate-400">{t("sis.tokenHint")}</p>
             </div>
           )}
-
-          <details className="group rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/60">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200">
-              {t("sis.install")}
-              <ChevronDown size={14} className="transition group-open:rotate-180" />
-            </summary>
-            <ol className="mt-2 list-disc space-y-1 ps-5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-              <li>{t("sis.install1")}</li>
-              <li>{t("sis.install2")}</li>
-              <li>{t("sis.install3")}</li>
-            </ol>
-          </details>
         </div>
       </div>
     </div>

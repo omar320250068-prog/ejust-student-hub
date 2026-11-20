@@ -1,4 +1,5 @@
 import { CAMPUS, allEntities } from "@/lib/campusTypes";
+import { FACULTY_PREFIXES, type Faculty } from "@/lib/faculty";
 import { SCHOLARSHIPS } from "@/data/scholarships";
 import { menuFor, DAYS, PERIODS, formatEgp } from "@/data/cafeteria";
 import { GRADE_POINTS } from "@/lib/gpa";
@@ -94,6 +95,9 @@ function campusDocs(): KnowledgeDoc[] {
       "layout",
       "overview",
       "map",
+      "buildings",
+      "campus buildings",
+      "building groups",
       "japanese garden",
       "zones",
       "grids",
@@ -169,8 +173,41 @@ function cafeteriaDocs(): KnowledgeDoc[] {
   return docs;
 }
 
+const FACULTY_NAMES: Record<Faculty, string> = {
+  FOE: "Engineering",
+  CSIT: "Computer Science & IT",
+  FIBH: "Business & Humanities",
+  FOP: "Pharmacy / PharmD",
+  BAS: "Basic & Applied Sciences",
+  FAD: "Art & Design",
+  SHARED: "Shared / University Requirements",
+};
+
 function academicsDocs(): KnowledgeDoc[] {
+  const facultySummary = (Object.keys(FACULTY_PREFIXES) as Faculty[])
+    .map(
+      (faculty) =>
+        `${faculty} (${FACULTY_NAMES[faculty]}) uses course-code prefixes ${FACULTY_PREFIXES[faculty].join(", ")}`,
+    )
+    .join("; ");
+
   return [
+    {
+      id: "academics:faculties",
+      title: "E-JUST faculties and course-code prefixes",
+      category: "academics",
+      text: [
+        "E-JUST organises teaching by faculty and uses the first three letters of a course code to show which faculty owns it.",
+        facultySummary + ".",
+        "If a course code is not recognised, the hub treats it as a shared university requirement.",
+      ].join(" "),
+      keywords: [
+        "faculty", "faculties", "school", "schools", "departments", "prefix", "prefixes",
+        "foe", "csit", "fibh", "bas", "fop", "fad", "shared",
+        "engineering", "computer science", "business", "humanities", "basic sciences",
+        "كليات", "كلية", "هندسة", "حاسبات", "إدارة أعمال", "علوم أساسية",
+      ],
+    },
     {
       id: "academics:csit-regulations",
       title: "CSIT academic regulations",
@@ -271,7 +308,7 @@ function aboutDocs(): KnowledgeDoc[] {
       text: [
         "The EJUST Student Hub is a free student toolkit for the Egypt-Japan University of Science and Technology in New Borg El-Arab City, Alexandria.",
         "It has a master plan map, a GPS map, a GPA tracker, a timetable builder, an exam planner, a cafeteria meal budget and a scholarship finder, plus a Today dashboard that summarises everything.",
-        "All data is stored locally in your browser; there is no account and nothing is uploaded.",
+        "Internal tools require a verified @ejust.edu.eg account; personal plans stay in this browser and can be exported or restored as JSON.",
       ].join(" "),
       keywords: [
         "hub",
@@ -293,8 +330,12 @@ function aboutDocs(): KnowledgeDoc[] {
         "Walking is the main way to get around campus; walking time is estimated at 14 metres per master-plan unit at 1.3 metres per second.",
         "Each place page shows the nearest gate, the walking time and distance, the compass direction to travel and the nearest parking hub.",
         "Shuttle buses run from the parking hubs during peak hours.",
+        "The hub does not store a fixed timetable; check live campus notices or the transport office for current shuttle times.",
       ].join(" "),
-      keywords: ["walk", "walking", "shuttle", "bus", "directions", "route", "gate", "time", "distance"],
+      keywords: [
+        "walk", "walking", "shuttle", "bus", "bus schedule", "bus timetable", "peak hours",
+        "parking hubs", "directions", "route", "gate", "time", "distance",
+      ],
     },
   ];
 }

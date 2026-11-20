@@ -77,6 +77,10 @@ interface Turn {
 }
 
 const SUGGESTIONS: { key: TranslationKey; query: string }[] = [
+  { key: "assistant.suggestFaculties", query: "What do FOE, CSIT, FIBH and BAS mean at E-JUST?" },
+  { key: "assistant.suggestGpaScale", query: "What is the E-JUST GPA scale?" },
+  { key: "assistant.suggestBuildings", query: "How are the campus buildings organized?" },
+  { key: "assistant.suggestBus", query: "What is the campus shuttle bus schedule?" },
   { key: "assistant.suggestLibrary", query: "Where is the Central Library?" },
   { key: "assistant.suggestGpa", query: "How is GPA calculated?" },
   { key: "assistant.suggestLab", query: "Which room is the COE computer lab?" },

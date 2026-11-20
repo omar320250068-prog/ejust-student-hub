@@ -1,13 +1,15 @@
 # EJUST Student Hub
 
-A student toolkit for the **Egypt-Japan University of Science and Technology** (New Borg El-Arab City, Alexandria). Everything is client-side and free/open-source — no accounts, no backend, no tracking. Your plans are stored in the browser's `localStorage`.
+A student toolkit for the **Egypt-Japan University of Science and Technology** (New Borg El-Arab City, Alexandria). The landing page at `/` is public, but every internal tool requires a verified `@ejust.edu.eg` account. Personal plans stay in this browser's `localStorage` and can be exported or restored as JSON.
 
 ## Features
 
 | Route | What it does |
 | --- | --- |
-| `/today` | Dashboard: today's classes, next exam + study split, GPA snapshot, closest scholarship deadline, food spend today |
-| `/` | Campus **master plan** — interactive SVG, search/filter, walking directions (nearest gate + parking, compass heading, route overlay) |
+| `/` | Public landing for guests; after sign-in, the campus **master plan** — interactive SVG, search/filter, walking directions (nearest gate + parking, compass heading, route overlay) |
+| `/today` | Dashboard: today's classes, next exam + study split, GPA snapshot, closest scholarship deadline, food spend today, JSON data backup |
+| `/login` | Sign in with a verified `@ejust.edu.eg` account and an optional safe `next` destination |
+| `/signup` | Create an account as a **Student** or **Teaching Assistant (TA)** |
 | `/map` | **GPS map** (Leaflet/OpenStreetMap) with 21 real campus locations, categories, and student reviews |
 | `/gpa` | **GPA predictor & degree tracker** — current/forecast GPA, grades needed for a target, semester + cumulative chart |
 | `/timetable` | Weekly **timetable builder** with conflict detection and `.ics` export |
@@ -20,18 +22,26 @@ A student toolkit for the **Egypt-Japan University of Science and Technology** (
 
 - **Calendar export** — exams and scholarship deadlines export as `.ics` (Google Calendar, Outlook, Apple Calendar)
 - **Print / Save as PDF** — GPA and Timetable pages print cleanly (nav and buttons hidden automatically)
+- **SIS sync extension** — an in-app 3-step guide covers Chrome and Edge; mobile users can add courses manually
 - **Offline assistant** — no API key, no external model, no network calls
+
+## Accounts and data
+
+- The landing page, auth pages (`/login`, `/signup`, `/forgot-password`, `/reset-password`), `/api/auth/*`, `/api/cron/*`, and static assets are public. Every other page requires a session; every other API returns `401` without one.
+- Signup is restricted to `@ejust.edu.eg` addresses. Choose **Student** or **Teaching Assistant (TA)** explicitly; TA accounts enter the admin approval queue and staff tools stay locked until `taStatus = APPROVED`.
+- Forgotten passwords are reset with a **6-digit OTP** sent to the verified university email, followed by a new password.
+- Use **Export Data (.json)** / **Import Data (.json)** in `/today` to back up or restore the local GPA, timetable, exam, seat, profile, and preference data saved on this device.
 
 ## The assistant
 
-`/assistant` is a retrieval-augmented chat over the app's own data — the 47-entry
-knowledge base is built directly from the campus data, scholarship list, cafeteria
-menu and GPA scale, so it can never drift from what the pages show.
+`/assistant` is a retrieval-augmented chat over the app's own data — the knowledge
+base is built directly from the campus data, scholarship list, cafeteria menu, GPA
+scale and faculty taxonomy, so it can never drift from what the pages show.
 
 It is deliberately **extractive**: it quotes retrieved passages instead of
 paraphrasing with a model, which means it cannot invent an answer. The trade-off is
-that it reads a little stiffly. Everything runs locally (BM25 retrieval in
-`src/lib/rag/`); there is no API key and no network call.
+that it reads a little stiffly. Retrieval runs locally (BM25 in `src/lib/rag/`);
+there is no external model or API key.
 
 **It refuses out-of-scope questions on purpose.** Retrieval always returns its
 closest document, and for a question it doesn't cover that document is a
@@ -139,7 +149,9 @@ npm run start   # serves on $PORT, default 3000
 
 ## Environment Setup
 
-Copy .env.example to .env.local and fill in your credentials:
-- AUTH_SECRET: Generate with openssl rand -base64 32`n- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET: From Google Cloud Console
-- DATABASE_URL: Postgres connection string (Supabase/Neon)
+Copy `.env.example` to `.env.local` and fill in your credentials:
+
+- `AUTH_SECRET`: generate with `openssl rand -base64 32`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: from Google Cloud Console
+- `DATABASE_URL`: Postgres connection string (Supabase/Neon)
 

@@ -256,6 +256,7 @@ function ContributeContent({
           )}
           <div className="mt-7 border-t border-white/10 pt-4 text-xs text-blue-100/70">
             <p>{t("contribute.perUpload")}</p>
+            <p className="mt-2">{t("contribute.meritPath")}</p>
             <p className="mt-2">{t("contribute.reviewTime")}</p>
           </div>
         </aside>

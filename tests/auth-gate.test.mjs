@@ -54,6 +54,7 @@ test("static assets are recognized as public", () => {
     "/_next/static/chunks/app.js",
     "/favicon.ico",
     "/manifest.json",
+    "/downloads/ejust-hub-sync-extension.zip",
     "/icons/icon-192.png",
     "/images/campus/main-gate.jpg.png",
   ]) {

@@ -8,11 +8,13 @@ A small Manifest V3 extension that watches the visible course/grade tables on `s
 - **Automatic background sync:** with auto-sync enabled (the default), changed **Registered Courses** or **Academic Transcript** tables are sent without clicking anything — including after ASP.NET postbacks.
 - **No duplicate uploads:** an unchanged table produces no request. A green `✓` badge and a dismissible corner toast confirm a successful sync.
 
-## Install
+## Install and sync in 3 steps
 
-1. Open `chrome://extensions` (Chrome) or `edge://extensions` (Edge) and enable **Developer mode**.
-2. Download the ZIP from the hub's sync guide, extract it, click **Load unpacked**, and select the extracted folder.
-3. Sign in to the hub and open any page with the sync guide (GPA Tracker / Timetable / Exams / Today). The token pairs automatically; the popup will show it pre-filled. Copy/paste from the guide still works as a fallback.
+1. **Load the extension.** Download the ZIP from the hub's sync guide, extract it, then open `chrome://extensions` (Chrome) or `edge://extensions` (Edge) and enable **Developer mode**.
+2. **Log in to SIS.** Click **Load unpacked**, select the extracted folder, then sign in at `sis.ejust.edu.eg` with your university account and open **Registered Courses** or **Academic Transcript**.
+3. **Trigger the sync.** Sign in to the hub and open any page with the sync guide (GPA Tracker / Timetable / Exams / Today). The token pairs automatically and the extension syncs the open table; press **Sync to Hub** in the popup to trigger it manually. Copy/paste from the guide still works as a fallback.
+
+On mobile, desktop extensions aren't available. Add courses manually in seconds from **Timetable** or **GPA Tracker** in the hub.
 
 ## Use
 
