@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -12,41 +12,26 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Plus, Trash2, Target, BookOpen, TrendingUp, Award } from "lucide-react";
+import { Plus, Trash2, Target, BookOpen, TrendingUp, Award, Sparkles } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
 import {
   computeStats,
+  EMPTY_GPA_DATA,
   formatGpa,
+  isDemoCourseId,
+  sanitizeGpaData,
   semesterSeries,
   GRADE_OPTIONS,
   GRADE_POINTS,
   type Course,
   type CourseStatus,
+  type GpaData,
   type LetterGrade,
 } from "@/lib/gpa";
 import { useUserData } from "@/hooks/useUserData";
 import { useLanguage } from "@/lib/i18n";
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
-
-const SEED_COURSES: Course[] = [
-  { id: "s1", code: "MATH101", title: "Calculus I", credits: 4, semester: "Y1S1", status: "completed", grade: "A" },
-  { id: "s2", code: "PHYS101", title: "Physics I", credits: 4, semester: "Y1S1", status: "completed", grade: "B+" },
-  { id: "s3", code: "CSE101", title: "Introduction to Computing", credits: 3, semester: "Y1S1", status: "completed", grade: "A" },
-  { id: "s4", code: "JPN101", title: "Japanese Language I", credits: 2, semester: "Y1S1", status: "completed", grade: "A+" },
-  { id: "s5", code: "HUM101", title: "Liberal Arts & Culture", credits: 2, semester: "Y1S1", status: "completed", grade: "B" },
-  { id: "s6", code: "MATH102", title: "Calculus II", credits: 4, semester: "Y1S2", status: "completed", grade: "B+" },
-  { id: "s7", code: "PHYS102", title: "Physics II", credits: 4, semester: "Y1S2", status: "completed", grade: "B" },
-  { id: "s8", code: "CHEM101", title: "Chemistry I", credits: 3, semester: "Y1S2", status: "completed", grade: "C+" },
-  { id: "s9", code: "ENG101", title: "Academic English", credits: 2, semester: "Y1S2", status: "completed", grade: "A" },
-  { id: "s10", code: "MATH201", title: "Differential Equations", credits: 3, semester: "Y2S1", status: "in-progress", expectedGrade: "B+" },
-  { id: "s11", code: "EECE201", title: "Circuit Analysis", credits: 3, semester: "Y2S1", status: "in-progress", expectedGrade: "B" },
-  { id: "s12", code: "CSE201", title: "Data Structures & Algorithms", credits: 3, semester: "Y2S1", status: "in-progress", expectedGrade: "A" },
-  { id: "s13", code: "STAT201", title: "Probability & Statistics", credits: 3, semester: "Y2S1", status: "in-progress", expectedGrade: "B+" },
-  { id: "s14", code: "EECE210", title: "Electromagnetics I", credits: 3, semester: "Y2S2", status: "planned" },
-  { id: "s15", code: "IDE201", title: "Engineering Design I", credits: 3, semester: "Y2S2", status: "planned" },
-  { id: "s16", code: "MATH202", title: "Linear Algebra", credits: 3, semester: "Y2S2", status: "planned" },
-];
 
 const GPA_GRADE_MAP: Record<string, LetterGrade> = {
   "A+": "A+", A: "A", "A-": "A", "B+": "B+", B: "B", "B-": "B",
@@ -55,15 +40,11 @@ const GPA_GRADE_MAP: Record<string, LetterGrade> = {
 
 export default function GpaPage() {
   const { t } = useLanguage();
-  const { data: saved, setData: saveData } = useUserData<{
-    courses: Course[];
-    targetGpa: number;
-    degreeCredits: number;
-  }>("gpa", {
-    courses: SEED_COURSES,
-    targetGpa: 3.5,
-    degreeCredits: 160,
-  });
+  const { data: saved, setData: saveData, loading } = useUserData<GpaData>(
+    "gpa",
+    EMPTY_GPA_DATA,
+    { sanitize: sanitizeGpaData },
+  );
   const courses = saved.courses;
   const targetGpa = saved.targetGpa;
   const degreeCredits = saved.degreeCredits;
@@ -82,6 +63,38 @@ export default function GpaPage() {
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
   const synced = useSyncedCourses();
   const [useSynced, setUseSynced] = useState(false);
+  const [sisOpen, setSisOpen] = useState(false);
+
+  // Retired sample courses lived under unscoped keys. Strip them on upgrade so
+  // they never reappear for guests or for a newly signed-in account.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    for (const legacyKey of ["ejust:gpa", "ejust-gpa-v1"]) {
+      const raw = window.localStorage.getItem(legacyKey);
+      if (!raw) continue;
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        const candidates =
+          parsed && typeof parsed === "object" && "courses" in parsed && Array.isArray(parsed.courses)
+            ? parsed.courses
+            : [];
+        const hasDemo = candidates.some(
+          (candidate) =>
+            candidate &&
+            typeof candidate === "object" &&
+            "id" in candidate &&
+            typeof candidate.id === "string" &&
+            isDemoCourseId(candidate.id),
+        );
+        if (!hasDemo) continue;
+        const cleaned = sanitizeGpaData(parsed);
+        if (cleaned) window.localStorage.setItem(legacyKey, JSON.stringify(cleaned));
+        else window.localStorage.removeItem(legacyKey);
+      } catch {
+        // Malformed legacy values are ignored; useUserData repairs valid ones.
+      }
+    }
+  }, []);
 
   // The local calculator uses a simplified grade scale; map E-JUST grades onto
   // its valid options and show the authoritative CGPA from the sync result.
@@ -115,9 +128,20 @@ export default function GpaPage() {
   });
 
   const stats = useMemo(
-    () => computeStats(activeCourses, targetGpa),
-    [activeCourses, targetGpa]
+    () => computeStats(activeCourses, targetGpa, degreeCredits),
+    [activeCourses, targetGpa, degreeCredits]
   );
+  const neededSub = !stats.achievable
+    ? t("study.neededNotAchievable")
+    : stats.remainingCredits > 0
+      ? t("study.neededRemaining", { n: stats.remainingCredits })
+      : t("study.noRemaining");
+  const neededValue =
+    stats.remainingCredits > 0 || !stats.achievable
+      ? stats.requiredAverage !== null
+        ? stats.requiredAverage.toFixed(2)
+        : "—"
+      : "Done";
   const series = useMemo(() => semesterSeries(activeCourses), [activeCourses]);
   const degreeProgress = Math.min(
     100,
@@ -165,7 +189,7 @@ export default function GpaPage() {
 
   return (
     <StudyShell icon={<TrendingUp size={19} />} title={t("study.gpa")} description="Simulate target grades, track cumulative performance, and see how your degree is progressing." action={<PrintButton />}>
-      <SisSyncGuide />
+      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="sr-only">GPA Predictor &amp; Degree Tracker</h1>
@@ -176,10 +200,46 @@ export default function GpaPage() {
         </div>
       </div>
 
+      {!loading && activeCourses.length === 0 && (
+        <div className="mt-6 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/60 p-6 text-center dark:border-cyan-800 dark:bg-cyan-950/20">
+          <span className="mx-auto grid size-10 place-items-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300">
+            <BookOpen size={20} />
+          </span>
+          <h2 className="mt-3 text-base font-semibold text-gray-900 dark:text-white">
+            {t("study.emptyGpaTitle")}
+          </h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-gray-600 dark:text-slate-300">
+            {t("study.emptyGpaBody")}
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSisOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700"
+            >
+              <Sparkles size={14} />
+              {t("sis.open")}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const form = document.getElementById("gpa-add-course");
+                form?.scrollIntoView({ behavior: "smooth", block: "center" });
+                form?.querySelector<HTMLInputElement>("input")?.focus();
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            >
+              <Plus size={14} />
+              {t("study.addCourse")}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard icon={<Award size={16} />} label="Current GPA (completed)" value={formatGpa(stats.currentGpa)} sub={`${stats.completedCredits} credits graded`} />
         <StatCard icon={<TrendingUp size={16} />} label="Forecast GPA (with expected)" value={formatGpa(stats.forecastGpa)} sub={`${stats.inProgressCredits} credits in progress`} />
-        <StatCard icon={<Target size={16} />} label={`Needed for ${targetGpa.toFixed(2)}`} value={stats.remainingCredits > 0 ? (stats.requiredAverage !== null ? stats.requiredAverage.toFixed(2) : "—") : "Done"} sub={stats.remainingCredits > 0 ? (stats.achievable ? `across ${stats.remainingCredits} remaining credits` : "target not achievable") : "no remaining credits"} accent={!stats.achievable && stats.remainingCredits > 0 ? "red" : "blue"} />
+        <StatCard icon={<Target size={16} />} label={`Needed for ${targetGpa.toFixed(2)}`} value={neededValue} sub={neededSub} accent={stats.achievable ? "blue" : "red"} />
         <StatCard icon={<BookOpen size={16} />} label="Degree Progress" value={`${Math.round(degreeProgress)}%`} sub={`${stats.completedCredits} / ${degreeCredits} credits`} />
       </div>
 
@@ -222,7 +282,7 @@ export default function GpaPage() {
               <Tooltip formatter={(value) => (typeof value === "number" ? value.toFixed(2) : value)} />
               <Legend />
               <Bar dataKey="semesterGpa" name="Semester GPA" fill="#93c5fd" radius={[6, 6, 0, 0]} />
-              <Line dataKey="cumulativeGpa" name="Cumulative GPA" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }} />
+              <Line dataKey="cumulativeGpa" name="Cumulative GPA" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -336,7 +396,7 @@ export default function GpaPage() {
         </div>
 
         {!showingSynced && (
-        <form onSubmit={addCourse} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
+        <form id="gpa-add-course" onSubmit={addCourse} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
           <Field label="Code">
             <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="EECE210" className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400" />
           </Field>

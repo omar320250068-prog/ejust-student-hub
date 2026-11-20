@@ -11,10 +11,10 @@ import { extractStudentIdFromEmail } from "@/lib/email-otp";
 import { useLanguage } from "@/lib/i18n";
 import {
   persistSisSyncState,
-  SIS_SYNC_STORAGE_KEY,
   useSyncedCourses,
   type SisSyncState,
 } from "@/components/SisSyncGuide";
+import { scopedStorageKey } from "@/lib/user-scoped-storage";
 import {
   ACADEMIC_YEARS,
   DEPARTMENTS_BY_FACULTY,
@@ -56,11 +56,11 @@ const DEFAULT_TA_PROFILE: TaProfile = {
 const selectClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-cyan-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 
-/** Read SIS state directly so the gate never opens before the hook re-renders. */
-function storedSyncedCourseCount(): number {
+/** Read the current account's SIS state directly so the gate never flashes. */
+function storedSyncedCourseCount(storageKey: string): number {
   if (typeof window === "undefined") return 0;
   try {
-    const raw = window.localStorage.getItem(SIS_SYNC_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     const parsed = raw ? (JSON.parse(raw) as { courses?: unknown }) : null;
     return Array.isArray(parsed?.courses) ? parsed.courses.length : 0;
   } catch {
@@ -93,6 +93,10 @@ export default function OnboardingWizard() {
     message: string | null;
   }>({ state: "idle", message: null });
   const userId = session?.user?.id;
+  const sisStorageKey = scopedStorageKey(
+    "sis-sync",
+    status === "authenticated" ? session?.user : null,
+  );
   const isTa = session?.user?.role === "TA";
   const taStatus = session?.user?.taStatus;
   const detectedStudentId = extractStudentIdFromEmail(session?.user?.email ?? "");
@@ -108,7 +112,7 @@ export default function OnboardingWizard() {
       const show = shouldShowOnboarding({
         authenticated: true,
         profile: readAcademicProfile(),
-        syncedCourseCount: storedSyncedCourseCount(),
+        syncedCourseCount: storedSyncedCourseCount(sisStorageKey),
         dismissed: isOnboardingDismissed(userId),
         welcome: welcomeRequested,
       });
@@ -119,7 +123,7 @@ export default function OnboardingWizard() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [status, userId, welcomeRequested]);
+  }, [sisStorageKey, status, userId, welcomeRequested]);
 
   /** Prefill role-specific state once the session email is available. */
   useEffect(() => {
@@ -264,7 +268,7 @@ export default function OnboardingWizard() {
         },
         syncToken: data.syncToken,
         syncedAt: data.syncedAt,
-      });
+      }, session?.user);
       setMessage({ text: t("onboarding.imported"), ok: true });
     } catch {
       setMessage({ text: t("onboarding.error"), ok: false });

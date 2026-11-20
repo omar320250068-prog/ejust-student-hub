@@ -18,12 +18,16 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import { scopedStorageKey, type StorageUser } from "@/lib/user-scoped-storage";
 import type { ParsedSisCourse, SisSummaryMetadata, SisTableType } from "@/lib/sis-parser";
 import type { SyncedCourse, SyncSummary } from "@/lib/sis-sync";
 
 export const SIS_SYNC_STORAGE_KEY = "ejust:sis-sync";
-const STORAGE_KEY = SIS_SYNC_STORAGE_KEY;
 const SYNC_EVENT = "ejust:sis-synced";
+
+function syncStorageKey(user?: StorageUser | null): string {
+  return scopedStorageKey("sis-sync", user);
+}
 const SYNC_TOKEN_MESSAGE = "EJUST_HUB_SYNC_TOKEN";
 const API_URL = "/api/student/sync";
 const EXTENSION_ZIP = "/downloads/ejust-hub-sync-extension.zip";
@@ -53,17 +57,24 @@ const EMPTY_STATE: SisSyncState = { courses: [], summary: EMPTY_SUMMARY };
 
 /** Shared read access to the synced course list for the hub pages. */
 export function useSyncedCourses(): SisSyncState {
+  const { data: session, status } = useSession();
   const [state, setState] = useState<SisSyncState>(EMPTY_STATE);
+  const storageKey = syncStorageKey(
+    status === "authenticated" ? session?.user : null,
+  );
 
   useEffect(() => {
     const read = () => {
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) {
+          setState(EMPTY_STATE);
+          return;
+        }
         const parsed = JSON.parse(raw) as SisSyncState;
-        if (Array.isArray(parsed.courses)) setState(parsed);
+        setState(Array.isArray(parsed.courses) ? parsed : EMPTY_STATE);
       } catch {
-        // Ignore corrupt local state; the guide will refresh it.
+        setState(EMPTY_STATE);
       }
     };
     read();
@@ -73,7 +84,7 @@ export function useSyncedCourses(): SisSyncState {
       window.removeEventListener(SYNC_EVENT, read);
       window.removeEventListener("storage", read);
     };
-  }, []);
+  }, [storageKey]);
 
   // A restored or newly issued token is broadcast on every hub page that uses
   // this hook, so opening the hub is enough to pair the extension.
@@ -85,16 +96,16 @@ export function useSyncedCourses(): SisSyncState {
 }
 
 /** Shared write access so the onboarding wizard can persist Smart Paste imports. */
-export function persistSisSyncState(state: SisSyncState) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export function persistSisSyncState(state: SisSyncState, user?: StorageUser | null) {
+  window.localStorage.setItem(syncStorageKey(user), JSON.stringify(state));
   window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: state }));
   broadcastSyncToken(state.syncToken);
 }
 
-function readStoredSync(): SisSyncState {
+function readStoredSync(user?: StorageUser | null): SisSyncState {
   if (typeof window === "undefined") return EMPTY_STATE;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(syncStorageKey(user));
     if (!raw) return EMPTY_STATE;
     const parsed = JSON.parse(raw) as SisSyncState;
     if (Array.isArray(parsed.courses)) return parsed;
@@ -170,12 +181,13 @@ export function SisSyncModal({
   onClose: () => void;
 }) {
   const { t, locale } = useLanguage();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const storageUser = status === "authenticated" ? session?.user : null;
   const [rawText, setRawText] = useState("");
-  const [rows, setRows] = useState<EditableRow[]>(() => readStoredSync().courses.map(toEditableRow));
+  const [rows, setRows] = useState<EditableRow[]>(() => readStoredSync(storageUser).courses.map(toEditableRow));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
-  const [state, setState] = useState<SisSyncState>(readStoredSync);
+  const [state, setState] = useState<SisSyncState>(() => readStoredSync(storageUser));
   const [copied, setCopied] = useState(false);
   const [metadata, setMetadata] = useState<SisSummaryMetadata | null>(null);
   const [tableType, setTableType] = useState<SisTableType>("unknown");
@@ -190,7 +202,7 @@ export function SisSyncModal({
       .then((data: SisSyncState | null) => {
         if (cancelled || !data || !Array.isArray(data.courses)) return;
         setState(data);
-        persistSisSyncState(data);
+        persistSisSyncState(data, storageUser);
         setRows((current) => (current.length > 0 ? current : data.courses.map(toEditableRow)));
       })
       .catch(() => {
@@ -199,7 +211,7 @@ export function SisSyncModal({
     return () => {
       cancelled = true;
     };
-  }, [open, status]);
+  }, [open, status, storageUser]);
 
   useEffect(() => {
     if (!open) return;
@@ -286,7 +298,7 @@ export function SisSyncModal({
         syncedAt: data.syncedAt,
       };
       setState(next);
-      persistSisSyncState(next);
+      persistSisSyncState(next, storageUser);
       setRows(next.courses.map(toEditableRow));
       setMessage({ text: t("sis.success"), ok: true });
     } catch {
@@ -663,9 +675,21 @@ export function SisSyncModal({
   );
 }
 
-/** Convenience wrapper: banner + modal with local open state. */
-export default function SisSyncGuide() {
-  const [open, setOpen] = useState(false);
+/** Convenience wrapper: banner + modal with optional external open control. */
+export default function SisSyncGuide({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+
   return (
     <>
       <SisGuideBanner onOpen={() => setOpen(true)} />

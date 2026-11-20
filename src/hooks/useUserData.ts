@@ -2,42 +2,82 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import { scopedStorageKey } from "@/lib/user-scoped-storage";
 
-export function useUserData<T>(feature: string, initial: T) {
+export interface UseUserDataOptions<T> {
+  /** Validate/migrate persisted values before they become component state. */
+  sanitize?: (value: unknown) => T | null;
+}
+
+export function useUserData<T>(
+  feature: string,
+  initial: T,
+  options: UseUserDataOptions<T> = {},
+) {
   const { data: session, status } = useSession();
+  const { sanitize } = options;
   const [data, setData] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
-  const key = `ejust:${feature}`;
+  const key = scopedStorageKey(
+    feature,
+    status === "authenticated" ? session?.user : null,
+  );
+
+  const coerce = useCallback(
+    (value: unknown): T | null => {
+      if (value == null) return null;
+      if (!sanitize) return value as T;
+      return sanitize(value);
+    },
+    [sanitize],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
+      const accept = (value: unknown) => {
+        const next = coerce(value);
+        if (next === null) return false;
+        if (!cancelled) {
+          setData(next);
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(key, JSON.stringify(next));
+            } catch {
+              // Storage may be disabled or full; in-memory state still works.
+            }
+          }
+        }
+        return true;
+      };
+
       try {
         if (status === "authenticated") {
           const res = await fetch(`/api/user-data?feature=${encodeURIComponent(feature)}`, { cache: "no-store" });
           if (res.ok) {
             const json = await res.json();
-            if (!cancelled && json.data !== null) {
-              setData(json.data as T);
-              setLoading(false);
-              return;
-            }
+            if (!cancelled && json.data != null && accept(json.data)) return;
           }
         }
 
         if (typeof window !== "undefined") {
-          const raw = localStorage.getItem(key);
-          if (raw && !cancelled) {
-            setData(JSON.parse(raw) as T);
+          const raw = window.localStorage.getItem(key);
+          if (raw) {
+            let parsed: unknown = null;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              // Corrupt values are discarded below.
+            }
+            if (!accept(parsed) && typeof window !== "undefined") {
+              window.localStorage.removeItem(key);
+            }
           }
         }
       } catch {
-        if (typeof window !== "undefined") {
-          const raw = localStorage.getItem(key);
-          if (raw && !cancelled) setData(JSON.parse(raw) as T);
-        }
+        // Keep the initial value when both the API and local storage are unavailable.
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -47,7 +87,7 @@ export function useUserData<T>(feature: string, initial: T) {
     return () => {
       cancelled = true;
     };
-  }, [feature, status, key]);
+  }, [coerce, feature, key, status]);
 
   const save = useCallback(
     async (value: T) => {

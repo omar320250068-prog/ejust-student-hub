@@ -19,7 +19,12 @@ export default function DataBackupPanel({ className = "" }: { className?: string
   function exportData() {
     setMessage(null);
     try {
-      const backup = collectBackup(window.localStorage);
+      const store = window.localStorage;
+      const backup = collectBackup({
+        getItem: (key) => store.getItem(key),
+        setItem: (key, value) => store.setItem(key, value),
+        keys: () => Object.keys(store),
+      });
       if (Object.keys(backup.data).length === 0) {
         setMessage(t("data.empty"));
         return;

@@ -126,7 +126,13 @@ export default function TodayPage() {
       .toSorted((a, b) => toMinutes(a.start) - toMinutes(b.start));
     const nextClass = classes.find((item) => toMinutes(item.start) >= now.getHours() * 60 + now.getMinutes()) ?? null;
     const nextExam = allocateStudy(snapshot.exams?.exams ?? [], snapshot.exams?.dailyHours ?? 3, now)[0] ?? null;
-    const gpa = snapshot.gpa ? computeStats(snapshot.gpa.courses, snapshot.gpa.targetGpa ?? 3.5) : null;
+    const gpa = snapshot.gpa
+      ? computeStats(
+          snapshot.gpa.courses,
+          snapshot.gpa.targetGpa ?? 3.5,
+          snapshot.gpa.degreeCredits,
+        )
+      : null;
     const saved = new Set(snapshot.saved);
     const open = SCHOLARSHIPS.map((scholarship) => ({ scholarship, days: daysUntil(scholarship.deadline, now) }))
       .filter((item) => item.days >= 0)

@@ -26,21 +26,121 @@ export interface Course {
   expectedGrade?: LetterGrade;
 }
 
+export interface GpaData {
+  courses: Course[];
+  targetGpa: number;
+  degreeCredits: number;
+}
+
+/** A fresh student starts with no courses until they sync or add one. */
+export const EMPTY_GPA_DATA: GpaData = {
+  courses: [],
+  targetGpa: 3.5,
+  degreeCredits: 160,
+};
+
+const DEMO_COURSE_ID = /^s([1-9]|1[0-6])$/;
+const COURSE_STATUSES: CourseStatus[] = ["completed", "in-progress", "planned"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCourse(value: unknown): value is Course {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.code === "string" &&
+    typeof value.title === "string" &&
+    typeof value.credits === "number" &&
+    Number.isFinite(value.credits) &&
+    typeof value.semester === "string" &&
+    COURSE_STATUSES.includes(value.status as CourseStatus)
+  );
+}
+
+export function isDemoCourseId(id: string): boolean {
+  return DEMO_COURSE_ID.test(id);
+}
+
+/** Drop the retired demo courses and repair malformed persisted GPA data. */
+export function sanitizeGpaData(value: unknown): GpaData | null {
+  if (!isRecord(value)) return null;
+
+  const courses = Array.isArray(value.courses)
+    ? value.courses.filter(isCourse).filter((course) => !isDemoCourseId(course.id))
+    : [];
+  const targetGpa =
+    typeof value.targetGpa === "number" && Number.isFinite(value.targetGpa)
+      ? Math.min(4, Math.max(0, value.targetGpa))
+      : EMPTY_GPA_DATA.targetGpa;
+  const degreeCredits =
+    typeof value.degreeCredits === "number" &&
+    Number.isFinite(value.degreeCredits) &&
+    value.degreeCredits > 0
+      ? value.degreeCredits
+      : EMPTY_GPA_DATA.degreeCredits;
+
+  return { courses, targetGpa, degreeCredits };
+}
+
+export interface NeededGpaResult {
+  neededGpa: number | null;
+  remainingCredits: number;
+  achievable: boolean;
+}
+
+/**
+ * Average needed over the rest of the degree, not only the courses already
+ * scheduled: ((target × degree) − (current × completed)) / remaining.
+ */
+export function computeNeededGpa(
+  currentGpa: number | null,
+  completedCredits: number,
+  degreeCredits: number,
+  targetGpa: number,
+): NeededGpaResult {
+  const remainingCredits = Math.max(0, degreeCredits - completedCredits);
+
+  if (remainingCredits <= 0) {
+    return {
+      neededGpa: null,
+      remainingCredits: 0,
+      achievable: (currentGpa ?? 0) >= targetGpa,
+    };
+  }
+
+  const rawNeeded =
+    (targetGpa * degreeCredits - (currentGpa ?? 0) * completedCredits) /
+    remainingCredits;
+
+  return {
+    neededGpa: Math.max(0, rawNeeded),
+    remainingCredits,
+    achievable: rawNeeded <= 4.0,
+  };
+}
+
 export interface GpaStats {
   completedCredits: number;
   completedPoints: number;
   currentGpa: number | null;
   inProgressCredits: number;
   plannedCredits: number;
+  /** Credits still needed to complete the degree. */
   remainingCredits: number;
   totalCredits: number;
   forecastGpa: number | null;
-  /** Average needed across remaining (in-progress + planned) credits to hit target */
+  /** Average needed across all remaining degree credits to hit target */
   requiredAverage: number | null;
   achievable: boolean;
 }
 
-export function computeStats(courses: Course[], targetGpa: number): GpaStats {
+export function computeStats(
+  courses: Course[],
+  targetGpa: number,
+  degreeCredits = EMPTY_GPA_DATA.degreeCredits,
+): GpaStats {
   let completedCredits = 0;
   let completedPoints = 0;
   let inProgressCredits = 0;
@@ -66,20 +166,14 @@ export function computeStats(courses: Course[], targetGpa: number): GpaStats {
     }
   }
 
-  const remainingCredits = inProgressCredits + plannedCredits;
-  const totalCredits = completedCredits + remainingCredits;
-
   const currentGpa = completedCredits > 0 ? completedPoints / completedCredits : null;
   const forecastGpa = forecastCredits > 0 ? forecastPoints / forecastCredits : null;
-
-  let requiredAverage: number | null = null;
-  let achievable = true;
-  if (remainingCredits > 0) {
-    requiredAverage =
-      (targetGpa * totalCredits - completedPoints) / remainingCredits;
-    achievable = requiredAverage <= 4.0;
-    if (requiredAverage < 0) requiredAverage = 0;
-  }
+  const needed = computeNeededGpa(
+    currentGpa,
+    completedCredits,
+    degreeCredits,
+    targetGpa,
+  );
 
   return {
     completedCredits,
@@ -87,18 +181,19 @@ export function computeStats(courses: Course[], targetGpa: number): GpaStats {
     currentGpa,
     inProgressCredits,
     plannedCredits,
-    remainingCredits,
-    totalCredits,
+    remainingCredits: needed.remainingCredits,
+    totalCredits: degreeCredits,
     forecastGpa,
-    requiredAverage,
-    achievable,
+    requiredAverage: needed.neededGpa,
+    achievable: needed.achievable,
   };
 }
 
 export interface SemesterPoint {
   semester: string;
   semesterGpa: number | null;
-  cumulativeGpa: number;
+  /** Null for semesters without a graded/expected course, so the chart skips the point. */
+  cumulativeGpa: number | null;
 }
 
 /** Per-semester GPA (graded + expected) and running cumulative GPA, ordered by first appearance. */
@@ -128,10 +223,11 @@ export function semesterSeries(courses: Course[]): SemesterPoint[] {
     }
     points += semPoints;
     credits += semCredits;
+    const hasGrades = semCredits > 0 && credits > 0;
     return {
       semester,
       semesterGpa: semCredits > 0 ? semPoints / semCredits : null,
-      cumulativeGpa: credits > 0 ? points / credits : 0,
+      cumulativeGpa: hasGrades ? points / credits : null,
     };
   });
 }

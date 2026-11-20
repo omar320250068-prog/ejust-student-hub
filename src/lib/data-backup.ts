@@ -4,6 +4,11 @@
  * Only known keys are exported/imported: arbitrary keys are never restored.
  */
 
+import {
+  baseStorageKey,
+  isScopedStorageKey,
+} from "./user-scoped-storage.ts";
+
 export const BACKUP_FORMAT = "ejust-student-hub-backup";
 export const BACKUP_VERSION = 1;
 export const MAX_BACKUP_BYTES = 5_000_000;
@@ -26,9 +31,20 @@ export const BACKUP_KEYS = [
   "ejust-locale",
 ] as const;
 
-export type BackupKey = (typeof BACKUP_KEYS)[number];
+export type BackupKey =
+  | (typeof BACKUP_KEYS)[number]
+  | `ejust:${string}:u:${string}`;
 
 const KNOWN_KEYS = new Set<string>(BACKUP_KEYS);
+
+function isKnownKey(key: string): boolean {
+  return KNOWN_KEYS.has(key) || isScopedStorageKey(key);
+}
+
+/** Scoped keys reuse the validation rules of their unscoped counterpart. */
+function validationKey(key: string): string {
+  return isScopedStorageKey(key) ? baseStorageKey(key) : key;
+}
 
 export interface StudentDataBackup {
   format: typeof BACKUP_FORMAT;
@@ -44,6 +60,8 @@ export type BackupValidation =
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  /** Optional so tests and minimal storage shims can omit key discovery. */
+  keys?(): string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -76,11 +94,11 @@ function validClassBlock(value: unknown): boolean {
 
 /** Reject obviously malformed or hostile values before touching storage. */
 function validValue(key: string, value: unknown): boolean {
-  switch (key) {
+  switch (validationKey(key)) {
     case "ejust:gpa":
     case "ejust-gpa-v1": {
       if (!isRecord(value)) return false;
-      if (key === "ejust:gpa") {
+      if (validationKey(key) === "ejust:gpa") {
         return (
           Array.isArray(value.courses) &&
           value.courses.every(validCourse) &&
@@ -125,7 +143,14 @@ function validValue(key: string, value: unknown): boolean {
 /** Read every known key from storage into a versioned, JSON-safe object. */
 export function collectBackup(storage: StorageLike, now = new Date()): StudentDataBackup {
   const data: Partial<Record<BackupKey, unknown>> = {};
-  for (const key of BACKUP_KEYS) {
+  const keys = new Set<BackupKey>(BACKUP_KEYS);
+  if (storage.keys) {
+    for (const key of storage.keys()) {
+      if (isKnownKey(key)) keys.add(key as BackupKey);
+    }
+  }
+
+  for (const key of keys) {
     try {
       const raw = storage.getItem(key);
       if (raw === null) continue;
@@ -165,7 +190,7 @@ export function validateBackup(value: unknown): BackupValidation {
   if (serialized.length > MAX_BACKUP_BYTES) return { ok: false, error: "too_large" };
 
   for (const [key, entry] of Object.entries(value.data)) {
-    if (!KNOWN_KEYS.has(key) || !validValue(key, entry)) {
+    if (!isKnownKey(key) || !validValue(key, entry)) {
       return { ok: false, error: "invalid_data" };
     }
   }
@@ -180,7 +205,7 @@ export function validateBackup(value: unknown): BackupValidation {
 export function applyBackup(storage: StorageLike, backup: StudentDataBackup): number {
   let restored = 0;
   for (const [key, entry] of Object.entries(backup.data)) {
-    if (!KNOWN_KEYS.has(key) || !validValue(key, entry)) continue;
+    if (!isKnownKey(key) || !validValue(key, entry)) continue;
     try {
       storage.setItem(key, JSON.stringify(entry));
       restored += 1;

@@ -95,6 +95,15 @@ html:not(.dark) .auth-glass-page input { background-color: rgb(255 255 255 / 0.9
 html[lang="ja"] body { letter-spacing: 0.01em; }
 html[dir="rtl"] body { font-family: Arial, "Noto Sans Arabic", sans-serif; }
 
+/* Keep horizontal navigation usable without exposing the native scrollbar. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Keep the app shell a fixed viewport height */
 html,
 body {
