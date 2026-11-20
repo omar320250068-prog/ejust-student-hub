@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { FileUp, Loader2, Lock, Send, Sparkles } from "lucide-react";
@@ -36,10 +36,18 @@ const TIER_KEY: Record<string, TranslationKey> = {
   EJUST_MENTOR: "merit.tierEjustMentor",
 };
 
-export default function ContributePage() {
+function ContributeContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string | string[] }>;
+}) {
   const { status } = useSession();
   const { t } = useLanguage();
-  const [category, setCategory] = useState("campus-update");
+  const requested = use(searchParams).category;
+  const requestedSlug = Array.isArray(requested) ? requested[0] : requested;
+  const initialCategory =
+    CATEGORIES.find((entry) => entry.slug === requestedSlug)?.slug ?? "campus-update";
+  const [category, setCategory] = useState(initialCategory);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -253,5 +261,17 @@ export default function ContributePage() {
         </aside>
       </MotionSection>
     </ServicePageShell>
+  );
+}
+
+export default function ContributePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string | string[] }>;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <ContributeContent searchParams={searchParams} />
+    </Suspense>
   );
 }

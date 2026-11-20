@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Info, Plus, Send, Trash2, UtensilsCrossed, Wallet } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { CampusLifeShell } from "@/components/ExperienceShells";
 import { DAYS, PERIODS, formatEgp, itemById, menuFor, type DayName } from "@/data/cafeteria";
 
 const STORAGE_KEY = "ejust-cafeteria-v1";
+const FEEDBACK_KEY = "ejust-cafeteria-feedback-v1";
 type Trays = Partial<Record<DayName, string[]>>;
+interface FeedbackEntry { text: string; at: string }
 
 export default function CafeteriaPage() {
   const { t } = useLanguage();
@@ -16,6 +18,7 @@ export default function CafeteriaPage() {
   const [day, setDay] = useState<DayName | null>(null);
   const [mounted, setMounted] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [feedbackList, setFeedbackList] = useState<FeedbackEntry[]>([]);
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
@@ -26,6 +29,14 @@ export default function CafeteriaPage() {
         const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as { trays?: Trays; budget?: number };
         if (saved.trays) setTrays(saved.trays);
         if (typeof saved.budget === "number") setBudget(saved.budget);
+        const savedFeedback = JSON.parse(window.localStorage.getItem(FEEDBACK_KEY) ?? "[]") as FeedbackEntry[];
+        if (Array.isArray(savedFeedback)) {
+          setFeedbackList(
+            savedFeedback.filter(
+              (entry) => entry && typeof entry.text === "string" && typeof entry.at === "string"
+            )
+          );
+        }
       } catch { /* use defaults */ }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -34,6 +45,18 @@ export default function CafeteriaPage() {
   useEffect(() => {
     if (mounted) window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ trays, budget }));
   }, [budget, mounted, trays]);
+
+  useEffect(() => {
+    if (mounted) window.localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedbackList));
+  }, [feedbackList, mounted]);
+
+  function submitFeedback() {
+    const text = feedback.trim();
+    if (!text) return;
+    setFeedbackList((previous) => [{ text, at: new Date().toISOString() }, ...previous].slice(0, 20));
+    setFeedback("");
+    setSent(true);
+  }
 
   const activeItems = day ? trays[day] ?? [] : [];
   const trayItems = activeItems.map(itemById).filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -58,7 +81,22 @@ export default function CafeteriaPage() {
         </section>
         <aside className="space-y-4">
           <section className="rounded-3xl border border-white/20 bg-slate-950/55 p-5 backdrop-blur-xl"><div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold"><Wallet size={16} className="text-cyan-300" />{t("cafeteria.tray")}</h2>{trayItems.length > 0 && <button onClick={() => day && setTrays((previous) => ({ ...previous, [day]: [] }))} className="text-xs text-slate-400 hover:text-white"><Trash2 size={13} /></button>}</div><div className="mt-4 space-y-2">{trayItems.length ? trayItems.map((item) => <div key={item.id} className="flex justify-between text-xs text-slate-300"><span>{item.name}</span><span>{formatEgp(item.price)}</span></div>) : <p className="text-sm text-slate-400">Choose items from the live menu.</p>}</div><div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-sm font-semibold"><span>Total</span><span className="text-cyan-200">{formatEgp(total)}</span></div><label className="mt-4 block text-xs text-slate-400">Daily budget<input type="number" value={budget} onChange={(event) => setBudget(Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300" /></label></section>
-          <section className="rounded-3xl border border-white/20 bg-slate-950/55 p-5 backdrop-blur-xl"><h2 className="text-sm font-semibold">{t("cafeteria.feedback")}</h2><textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder={t("cafeteria.feedbackPlaceholder")} className="mt-3 min-h-24 w-full resize-none rounded-xl border border-white/15 bg-white/10 p-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300" /><button onClick={() => { setSent(true); setFeedback(""); }} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950"><Send size={14} />{sent ? "Sent" : t("cafeteria.submit")}</button></section>
+          <section className="rounded-3xl border border-white/20 bg-slate-950/55 p-5 backdrop-blur-xl">
+            <h2 className="text-sm font-semibold">{t("cafeteria.feedback")}</h2>
+            <textarea value={feedback} onChange={(event) => { setFeedback(event.target.value); setSent(false); }} placeholder={t("cafeteria.feedbackPlaceholder")} className="mt-3 min-h-24 w-full resize-none rounded-xl border border-white/15 bg-white/10 p-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300" />
+            <button onClick={submitFeedback} disabled={!feedback.trim()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:opacity-50"><Send size={14} />{t("cafeteria.submit")}</button>
+            {sent && (
+              <p role="status" className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-3 text-xs text-emerald-100">
+                <Check size={14} className="mt-0.5 shrink-0" />
+                {t("cafeteria.sent")}
+              </p>
+            )}
+            {feedbackList[0] && (
+              <p className="mt-3 line-clamp-3 break-words text-[11px] leading-5 text-slate-400">
+                {new Date(feedbackList[0].at).toLocaleDateString()}: {feedbackList[0].text}
+              </p>
+            )}
+          </section>
           <p className="flex gap-2 text-xs leading-5 text-slate-300"><Info size={14} className="mt-0.5 shrink-0 text-cyan-300" />Menu and crowd indicators are campus planning estimates and may change during service.</p>
         </aside>
       </div>

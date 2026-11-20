@@ -51,7 +51,7 @@ export default function TopNav() {
           Egypt-Japan University of Science &amp; Technology
         </span>
       </div>
-      <nav aria-label={t("nav.menu")} className="order-3 -mx-4 flex w-full min-w-0 gap-1 overflow-x-auto border-t border-gray-200 px-4 py-1.5 dark:border-slate-800 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:py-0">
+      <nav aria-label={t("nav.menu")} className="order-3 flex w-full min-w-0 gap-1 overflow-x-auto border-t border-gray-200 py-1.5 dark:border-slate-800 sm:order-none sm:w-auto sm:flex-1 sm:border-0 sm:py-0">
         {links.map(({ href, key, icon: Icon }) => {
           const label = t(`nav.${key}`);
           const active = pathname === href;

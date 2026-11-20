@@ -386,7 +386,7 @@
     {
       "columnKey": "Y3AIDS1",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -405,7 +405,7 @@
     {
       "columnKey": "Y3AIDS2",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -424,7 +424,7 @@
     {
       "columnKey": "Y3AIDS3",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -443,7 +443,7 @@
     {
       "columnKey": "Y3AIDS4",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -462,7 +462,7 @@
     {
       "columnKey": "Y3BIFS1",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -481,7 +481,7 @@
     {
       "columnKey": "Y3CNCS1",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -500,7 +500,7 @@
     {
       "columnKey": "Y3CNCS2",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -519,7 +519,7 @@
     {
       "columnKey": "Y3CNCS3",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -538,7 +538,7 @@
     {
       "columnKey": "Y3CSCS1",
       "courseCode": "CSC 113",
-      "title": "Compiler Design xxx",
+      "title": "Compiler Design",
       "meetingType": "LAB",
       "year": 3,
       "group": null,
@@ -2951,7 +2951,7 @@
     {
       "columnKey": "Y4CSCS1",
       "courseCode": "CSC 414",
-      "title": "Game Design & Development xxx",
+      "title": "Game Design & Development",
       "meetingType": "TUTORIAL",
       "year": 4,
       "group": null,
@@ -4908,7 +4908,7 @@
     {
       "columnKey": "Y4CSCS1",
       "courseCode": "CSC 414",
-      "title": "Game Design & Development xxx",
+      "title": "Game Design & Development",
       "meetingType": "LAB",
       "year": 4,
       "group": null,
@@ -10836,7 +10836,7 @@
     {
       "columnKey": "Y4AIDS1",
       "courseCode": "AID 328",
-      "title": "Game Theory xxx",
+      "title": "Game Theory",
       "meetingType": "TUTORIAL",
       "year": 4,
       "group": null,
@@ -10855,7 +10855,7 @@
     {
       "columnKey": "Y4AIDS2",
       "courseCode": "AID 328",
-      "title": "Game Theory xxx",
+      "title": "Game Theory",
       "meetingType": "TUTORIAL",
       "year": 4,
       "group": null,
@@ -10874,7 +10874,7 @@
     {
       "columnKey": "Y4AIDS3",
       "courseCode": "AID 328",
-      "title": "Game Theory xxx",
+      "title": "Game Theory",
       "meetingType": "TUTORIAL",
       "year": 4,
       "group": null,
@@ -10893,7 +10893,7 @@
     {
       "columnKey": "Y4AIDS4",
       "courseCode": "AID 328",
-      "title": "Game Theory xxx",
+      "title": "Game Theory",
       "meetingType": "TUTORIAL",
       "year": 4,
       "group": null,

@@ -36,6 +36,12 @@ import {
 
 const STORAGE_KEY = "ejust-exams-v1";
 const FACULTY_KEY = "ejust:faculty";
+const SEAT_KEY = "ejust-exam-seat-v1";
+
+interface SeatInfo {
+  hall: string;
+  seat: string;
+}
 
 type ExamFilterMode = "my" | "faculty" | "all";
 type FilterSelection = ExamFilterMode | "auto";
@@ -74,8 +80,10 @@ export default function ExamsPage() {
   const [dailyHours, setDailyHours] = useState(3);
   const [mounted, setMounted] = useState(false);
   const [nowMs, setNowMs] = useState<number | null>(null);
-  const [seatCode, setSeatCode] = useState("");
-  const [seatResult, setSeatResult] = useState<string | null>(null);
+  const [seatInfo, setSeatInfo] = useState<SeatInfo | null>(null);
+  const [hallInput, setHallInput] = useState("");
+  const [seatInput, setSeatInput] = useState("");
+  const [editingSeat, setEditingSeat] = useState(false);
   const synced = useSyncedCourses();
   const [highlightSynced, setHighlightSynced] = useState(true);
   const [filterMode, setFilterMode] = useState<FilterSelection>("auto");
@@ -109,6 +117,15 @@ export default function ExamsPage() {
           const saved = JSON.parse(raw) as { exams?: Exam[]; dailyHours?: number };
           if (Array.isArray(saved.exams)) setExams(saved.exams);
           if (typeof saved.dailyHours === "number") setDailyHours(saved.dailyHours);
+        }
+        const savedSeat = JSON.parse(window.localStorage.getItem(SEAT_KEY) ?? "null") as SeatInfo | null;
+        if (
+          savedSeat &&
+          typeof savedSeat.hall === "string" &&
+          typeof savedSeat.seat === "string" &&
+          (savedSeat.hall || savedSeat.seat)
+        ) {
+          setSeatInfo(savedSeat);
         }
       } catch {
         // corrupt storage — keep the local planner empty
@@ -169,6 +186,24 @@ export default function ExamsPage() {
       // storage unavailable
     }
   }, [faculty, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      if (seatInfo) window.localStorage.setItem(SEAT_KEY, JSON.stringify(seatInfo));
+      else window.localStorage.removeItem(SEAT_KEY);
+    } catch {
+      // storage unavailable
+    }
+  }, [mounted, seatInfo]);
+
+  function saveSeat() {
+    const hall = hallInput.trim();
+    const seat = seatInput.trim();
+    if (!hall && !seat) return;
+    setSeatInfo({ hall, seat });
+    setEditingSeat(false);
+  }
 
   const allExams = useMemo(() => {
     const localKeys = new Set(hubExams.map(examKey));
@@ -333,8 +368,35 @@ export default function ExamsPage() {
 
       <section className="mt-8 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? "Add an exam to start the clock."}</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.hall")}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Hall A2</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Building E</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">Floor 2</span></div></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-semibold text-slate-500">{t("study.seat")}</p><div className="mt-3 flex gap-2"><input value={seatCode} onChange={(event) => setSeatCode(event.target.value)} placeholder="Student ID" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" /><button onClick={() => setSeatResult(seatCode ? "Hall A2 · Row 4 · Seat 18" : "Enter your student ID")} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white dark:bg-cyan-300 dark:text-slate-950">{t("study.lookup")}</button></div>{seatResult && <p className="mt-2 text-xs text-cyan-700 dark:text-cyan-300">{seatResult}</p>}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">{t("study.hall")} · {t("study.seat")}</p>
+              {seatInfo && !editingSeat ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {seatInfo.hall && <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-200">{seatInfo.hall}</span>}
+                  {seatInfo.seat && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">{t("study.seat")}: {seatInfo.seat}</span>}
+                  <span className="text-[11px] text-slate-400">{t("study.seatSaved")}</span>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs leading-5 text-slate-500">{t("study.seatEmpty")}</p>
+              )}
+            </div>
+            {seatInfo && !editingSeat && (
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setHallInput(seatInfo.hall); setSeatInput(seatInfo.seat); setEditingSeat(true); }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-cyan-300 dark:border-slate-700 dark:text-slate-300">{t("study.seatEdit")}</button>
+                <button type="button" onClick={() => { setSeatInfo(null); setHallInput(""); setSeatInput(""); setEditingSeat(false); }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-rose-300 dark:border-slate-700 dark:text-slate-300">{t("study.seatClear")}</button>
+              </div>
+            )}
+          </div>
+          {(editingSeat || !seatInfo) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <input value={hallInput} onChange={(event) => setHallInput(event.target.value)} placeholder={t("study.seatHallPlaceholder")} className="min-w-0 flex-1 basis-32 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" />
+              <input value={seatInput} onChange={(event) => setSeatInput(event.target.value)} placeholder={t("study.seatSeatPlaceholder")} className="min-w-0 flex-1 basis-32 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" />
+              <button type="button" onClick={saveSeat} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white dark:bg-cyan-300 dark:text-slate-950">{t("study.seatSave")}</button>
+            </div>
+          )}
+        </div>
       </section>
       <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {upcoming.map(({ exam, days }) => {

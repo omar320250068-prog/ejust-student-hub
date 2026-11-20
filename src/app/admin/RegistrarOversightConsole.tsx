@@ -47,9 +47,9 @@ export type AdminMetrics = {
 
 const NAV = [
   { href: "/dashboard", label: "Portal Home" },
-  { href: "/services/notes", label: "Notes Library" },
-  { href: "/services/past-papers", label: "Past Papers" },
-  { href: "/services/gpa", label: "GPA Planner" },
+  { href: "/contribute?category=lecture-notes", label: "Notes Library" },
+  { href: "/contribute?category=past-papers", label: "Past Papers" },
+  { href: "/gpa", label: "GPA Planner" },
   { href: "/contribute", label: "Contribute" },
 ];
 

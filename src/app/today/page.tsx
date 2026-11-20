@@ -18,12 +18,13 @@ import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
 import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
 import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafeteria";
 import CampusBackground from "@/components/CampusBackground";
+import DataBackupPanel from "@/components/DataBackupPanel";
 import MeritPanel from "@/components/MeritPanel";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import OnboardingWizard from "@/components/OnboardingWizard";
 
 const KEYS = {
-  timetable: "ejust-timetable-v1", gpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
+  timetable: "ejust-timetable-v1", gpa: "ejust:gpa", legacyGpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
   cafeteria: "ejust-cafeteria-v1", savedScholarships: "ejust-scholarships-saved-v1",
 };
 
@@ -66,7 +67,7 @@ export default function TodayPage() {
       setNowMs(Date.now());
       setSnapshot({
         timetable: readJson<ClassBlock[]>(KEYS.timetable) ?? [],
-        gpa: readJson<GpaData>(KEYS.gpa),
+        gpa: readJson<GpaData>(KEYS.gpa) ?? readJson<GpaData>(KEYS.legacyGpa),
         exams: readJson<ExamsData>(KEYS.exams),
         cafeteria: readJson<CafeteriaData>(KEYS.cafeteria),
         saved: readJson<string[]>(KEYS.savedScholarships) ?? [],
@@ -147,7 +148,7 @@ export default function TodayPage() {
   const launches = [
     { href: "/map", key: "map" as const, icon: Map, color: "from-cyan-400 to-blue-500" },
     { href: "/gpa", key: "gpa" as const, icon: GraduationCap, color: "from-violet-400 to-fuchsia-500" },
-    { href: "/services/notes", key: "notes" as const, icon: BookOpen, color: "from-amber-300 to-orange-500" },
+    { href: "/contribute?category=lecture-notes", key: "notes" as const, icon: BookOpen, color: "from-amber-300 to-orange-500" },
     { href: "/exams", key: "exams" as const, icon: CalendarDays, color: "from-rose-400 to-red-500" },
     { href: "/cafeteria", key: "cafeteria" as const, icon: Coffee, color: "from-emerald-300 to-teal-500" },
     { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion, color: "from-cyan-300 to-sky-500" },
@@ -180,6 +181,7 @@ export default function TodayPage() {
         </Suspense>
 
         <MeritPanel className="mt-6" />
+        <DataBackupPanel className="mt-6" />
 
         <section className="mt-6" aria-labelledby="hub-notices-title">
           <div className="mb-3 flex items-end justify-between gap-3">

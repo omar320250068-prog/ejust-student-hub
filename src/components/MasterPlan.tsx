@@ -322,8 +322,8 @@ export default function MasterPlan() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] w-full overflow-hidden bg-gray-50">
-      <aside className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
+    <div className="flex h-[calc(100vh-3rem)] w-full flex-col overflow-hidden bg-gray-50 md:flex-row">
+      <aside className="flex max-h-[35vh] w-full shrink-0 flex-col border-b border-gray-200 bg-white md:max-h-none md:w-72 md:border-b-0 md:border-r">
         <div className="border-b border-gray-100 p-3">
           <h1 className="text-sm font-bold text-gray-900">{CAMPUS.name}</h1>
           <div className="relative mt-2">
@@ -392,7 +392,7 @@ export default function MasterPlan() {
       </aside>
 
       <div
-        className="relative min-w-0 flex-1"
+        className="relative min-h-0 min-w-0 flex-1"
         style={{ cursor: isPanning ? "grabbing" : "grab" }}
       >
         <svg
@@ -650,7 +650,7 @@ export default function MasterPlan() {
         )}
 
         {!selected && (
-          <div className="absolute bottom-3 right-3 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="absolute bottom-3 right-3 w-72 max-w-[calc(100%-1.5rem)] rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
             <p className="text-sm font-semibold text-gray-900">Plan your trip</p>
             <ol className="mt-1.5 list-inside list-decimal space-y-1 text-xs text-gray-600">
               <li>Pick a building, landmark, or gate on the plan.</li>
@@ -661,7 +661,7 @@ export default function MasterPlan() {
         )}
 
         {selected && (
-          <div className="absolute bottom-3 right-3 flex max-h-[calc(100%-1.5rem)] w-80 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="absolute bottom-3 right-3 flex max-h-[calc(100%-1.5rem)] w-80 max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
             <div className="flex items-start justify-between gap-2 border-b border-gray-100 p-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">

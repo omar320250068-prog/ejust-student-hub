@@ -410,9 +410,9 @@ export default function AssistantPage() {
                             .filter(([key, value]) => key !== "id" && !(location && ["location", "building", "room"].includes(key)) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
                             .slice(0, 6)
                             .map(([key, value]) => (
-                              <div key={key} className="flex gap-1">
-                                <dt className="font-semibold text-slate-500 dark:text-slate-400">{key}:</dt>
-                                <dd>{String(value)}</dd>
+                              <div key={key} className="flex min-w-0 gap-1">
+                                <dt className="shrink-0 font-semibold text-slate-500 dark:text-slate-400">{key}:</dt>
+                                <dd className="min-w-0 break-words">{String(value)}</dd>
                               </div>
                             ))}
                         </dl>

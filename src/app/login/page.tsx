@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { GraduationCap, Loader2, LogIn } from "lucide-react";
 import CampusBackground from "@/components/CampusBackground";
 import EmailVerificationStep from "@/components/EmailVerificationStep";
+import { safeNextPath } from "@/lib/auth-gate";
 import { AUTH_ERROR_TRANSLATION_KEY, isAuthErrorCode } from "@/lib/auth-messages";
 import { validateEjustEmail } from "@/lib/email-otp";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
@@ -19,6 +20,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
+
+  // Read the query string at interaction time: `useSearchParams` would force a
+  // Suspense boundary on this statically rendered page under cacheComponents.
+  function currentNextPath() {
+    return safeNextPath(new URLSearchParams(window.location.search).get("next"));
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,7 +70,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/contribute");
+      router.push(currentNextPath());
       router.refresh();
     } catch {
       setError(t("auth.network"));
@@ -139,7 +146,7 @@ export default function LoginPage() {
             </div>
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/contribute" })}
+              onClick={() => signIn("google", { callbackUrl: currentNextPath() })}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 hover:bg-white/10"
             >
               <LogIn size={15} />
