@@ -82,8 +82,12 @@ export default function OnboardingWizard() {
   const synced = useSyncedCourses();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<0 | 1>(0);
+  // Selections stay visually preset for discovery, but nothing is saved until
+  // the student explicitly confirms a faculty/year/section (or TA track).
   const [draft, setDraft] = useState<AcademicProfile>(DEFAULT_PROFILE);
   const [taDraft, setTaDraft] = useState<TaProfile>(DEFAULT_TA_PROFILE);
+  const [profileTouched, setProfileTouched] = useState(false);
+  const [taTouched, setTaTouched] = useState(false);
   const [courseInput, setCourseInput] = useState("");
   const [paste, setPaste] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,10 +97,8 @@ export default function OnboardingWizard() {
     message: string | null;
   }>({ state: "idle", message: null });
   const userId = session?.user?.id;
-  const sisStorageKey = scopedStorageKey(
-    "sis-sync",
-    status === "authenticated" ? session?.user : null,
-  );
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const sisStorageKey = scopedStorageKey("sis-sync", studentUser);
   const isTa = session?.user?.role === "TA";
   const taStatus = session?.user?.taStatus;
   const detectedStudentId = extractStudentIdFromEmail(session?.user?.email ?? "");
@@ -111,7 +113,7 @@ export default function OnboardingWizard() {
     const timer = window.setTimeout(() => {
       const show = shouldShowOnboarding({
         authenticated: true,
-        profile: readAcademicProfile(),
+        profile: readAcademicProfile(studentUser),
         syncedCourseCount: storedSyncedCourseCount(sisStorageKey),
         dismissed: isOnboardingDismissed(userId),
         welcome: welcomeRequested,
@@ -123,7 +125,7 @@ export default function OnboardingWizard() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [sisStorageKey, status, userId, welcomeRequested]);
+  }, [sisStorageKey, status, studentUser, userId, welcomeRequested]);
 
   /** Prefill role-specific state once the session email is available. */
   useEffect(() => {
@@ -131,17 +133,17 @@ export default function OnboardingWizard() {
     // Defer storage reads so the effect synchronizes with localStorage rather
     // than synchronously updating state during render.
     const timer = window.setTimeout(() => {
-      const savedTa = readTaProfile();
+      const savedTa = readTaProfile(studentUser);
       if (savedTa) setTaDraft(savedTa);
       if (detectedStudentId) {
         setDraft((current) => ({
           ...current,
-          studentId: current.studentId ?? readAcademicProfile()?.studentId ?? detectedStudentId,
+          studentId: current.studentId ?? readAcademicProfile(studentUser)?.studentId ?? detectedStudentId,
         }));
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [status, userId, detectedStudentId]);
+  }, [status, studentUser, userId, detectedStudentId]);
 
   /** Drop only the `welcome` flag, preserving any other query parameters. */
   const clearWelcomeParam = useCallback(() => {
@@ -169,7 +171,7 @@ export default function OnboardingWizard() {
 
   /** Step 1 is committed before the student can move on, not at the end. */
   const commitProfile = useCallback(() => {
-    const saved = saveAcademicProfile(draft);
+    const saved = saveAcademicProfile(draft, studentUser);
     if (status === "authenticated") {
       void fetch("/api/user-data", {
         method: "POST",
@@ -179,11 +181,11 @@ export default function OnboardingWizard() {
         // The mirror is best-effort; localStorage remains authoritative here.
       });
     }
-  }, [draft, status]);
+  }, [draft, status, studentUser]);
 
   /** TA profile is mirrored separately; it has no study year or section. */
   const commitTaProfile = useCallback(() => {
-    const saved = saveTaProfile(taDraft);
+    const saved = saveTaProfile(taDraft, studentUser);
     if (status === "authenticated") {
       void fetch("/api/user-data", {
         method: "POST",
@@ -193,7 +195,7 @@ export default function OnboardingWizard() {
         // The mirror is best-effort; localStorage remains authoritative here.
       });
     }
-  }, [taDraft, status]);
+  }, [taDraft, status, studentUser]);
 
   function addTaCourse() {
     const code = normalizeCourseCode(courseInput);
@@ -338,6 +340,7 @@ export default function OnboardingWizard() {
                     value={taDraft.faculty}
                     onChange={(event) => {
                       const faculty = event.target.value as OnboardingFaculty;
+                      setTaTouched(true);
                       setTaDraft((current) => {
                         const presets = DEPARTMENTS_BY_FACULTY[faculty] as readonly string[];
                         const track = presets.includes(current.track)
@@ -362,12 +365,13 @@ export default function OnboardingWizard() {
                   </span>
                   <select
                     value={taDraft.track}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setTaTouched(true);
                       setTaDraft((current) => ({
                         ...current,
                         track: event.target.value as TaProfile["track"],
-                      }))
-                    }
+                      }));
+                    }}
                     className={selectClass}
                   >
                     {DEPARTMENTS_BY_FACULTY[taDraft.faculty].map((track) => (
@@ -392,6 +396,7 @@ export default function OnboardingWizard() {
                   value={draft.faculty}
                   onChange={(event) => {
                     const faculty = event.target.value as OnboardingFaculty;
+                    setProfileTouched(true);
                     setDraft((current) => {
                       const presets = DEPARTMENTS_BY_FACULTY[faculty] as readonly string[];
                       const track = presets.includes(current.track)
@@ -416,12 +421,13 @@ export default function OnboardingWizard() {
                 </span>
                 <select
                   value={draft.year}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setProfileTouched(true);
                     setDraft((current) => ({
                       ...current,
                       year: Number(event.target.value) as AcademicProfile["year"],
-                    }))
-                  }
+                    }));
+                  }}
                   className={selectClass}
                 >
                   {ACADEMIC_YEARS.map((year) => (
@@ -438,12 +444,13 @@ export default function OnboardingWizard() {
                 </span>
                 <select
                   value={draft.track}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setProfileTouched(true);
                     setDraft((current) => ({
                       ...current,
                       track: event.target.value as AcademicProfile["track"],
-                    }))
-                  }
+                    }));
+                  }}
                   className={selectClass}
                 >
                   {DEPARTMENTS_BY_FACULTY[draft.faculty].map((track) => (
@@ -460,9 +467,10 @@ export default function OnboardingWizard() {
                 </span>
                 <select
                   value={draft.section}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, section: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    setProfileTouched(true);
+                    setDraft((current) => ({ ...current, section: event.target.value }));
+                  }}
                   className={selectClass}
                 >
                   {SECTIONS.map((section) => (
@@ -668,7 +676,9 @@ export default function OnboardingWizard() {
                 setMessage(null);
                 setStep(1);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-cyan-700"
+              disabled={isTa ? !taTouched : !profileTouched}
+              title={t("onboarding.profileHint")}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("onboarding.next")}
               <NextIcon size={14} />

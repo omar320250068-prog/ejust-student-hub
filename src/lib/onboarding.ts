@@ -6,6 +6,11 @@
  * the validation and gating logic here makes it testable without React.
  */
 import type { Faculty } from "./faculty";
+import {
+  purgeLegacyStudentKeys,
+  studentStorageKey,
+} from "./student-data.ts";
+import type { StorageUser } from "./user-scoped-storage.ts";
 
 /** The six teachable faculties shown in onboarding (SHARED is a service pool). */
 export const ONBOARDING_FACULTIES = [
@@ -198,11 +203,14 @@ export function normalizeTaProfile(value: unknown): TaProfile | null {
   return profile;
 }
 
-/** Read the shared profile from localStorage (safe during SSR). */
-export function readAcademicProfile(): AcademicProfile | null {
+/** Read the account's profile from localStorage (safe during SSR). */
+export function readAcademicProfile(user?: StorageUser | null): AcademicProfile | null {
   if (typeof window === "undefined") return null;
+  purgeLegacyStudentKeys(window.localStorage, user);
   try {
-    const raw = window.localStorage.getItem(ACADEMIC_PROFILE_KEY);
+    const raw = window.localStorage.getItem(
+      studentStorageKey("academic-profile", user, ACADEMIC_PROFILE_KEY),
+    );
     return raw ? normalizeAcademicProfile(JSON.parse(raw) as unknown) : null;
   } catch {
     return null;
@@ -210,20 +218,30 @@ export function readAcademicProfile(): AcademicProfile | null {
 }
 
 /** Persist the profile and notify already-mounted hub pages. */
-export function saveAcademicProfile(profile: AcademicProfile): AcademicProfile {
+export function saveAcademicProfile(
+  profile: AcademicProfile,
+  user?: StorageUser | null,
+): AcademicProfile {
   const normalized: AcademicProfile = { ...profile, updatedAt: new Date().toISOString() };
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(ACADEMIC_PROFILE_KEY, JSON.stringify(normalized));
+    purgeLegacyStudentKeys(window.localStorage, user);
+    window.localStorage.setItem(
+      studentStorageKey("academic-profile", user, ACADEMIC_PROFILE_KEY),
+      JSON.stringify(normalized),
+    );
     window.dispatchEvent(new CustomEvent(ACADEMIC_PROFILE_EVENT, { detail: normalized }));
   }
   return normalized;
 }
 
-/** Read the TA onboarding record from localStorage (safe during SSR). */
-export function readTaProfile(): TaProfile | null {
+/** Read the account's TA onboarding record from localStorage (safe during SSR). */
+export function readTaProfile(user?: StorageUser | null): TaProfile | null {
   if (typeof window === "undefined") return null;
+  purgeLegacyStudentKeys(window.localStorage, user);
   try {
-    const raw = window.localStorage.getItem(TA_PROFILE_KEY);
+    const raw = window.localStorage.getItem(
+      studentStorageKey("ta-profile", user, TA_PROFILE_KEY),
+    );
     return raw ? normalizeTaProfile(JSON.parse(raw) as unknown) : null;
   } catch {
     return null;
@@ -231,10 +249,14 @@ export function readTaProfile(): TaProfile | null {
 }
 
 /** Persist the TA profile and notify already-mounted hub pages. */
-export function saveTaProfile(profile: TaProfile): TaProfile {
+export function saveTaProfile(profile: TaProfile, user?: StorageUser | null): TaProfile {
   const normalized: TaProfile = { ...profile, updatedAt: new Date().toISOString() };
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(TA_PROFILE_KEY, JSON.stringify(normalized));
+    purgeLegacyStudentKeys(window.localStorage, user);
+    window.localStorage.setItem(
+      studentStorageKey("ta-profile", user, TA_PROFILE_KEY),
+      JSON.stringify(normalized),
+    );
     window.dispatchEvent(new CustomEvent(TA_PROFILE_EVENT, { detail: normalized }));
   }
   return normalized;

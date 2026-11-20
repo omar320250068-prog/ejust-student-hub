@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -33,10 +34,14 @@ import {
   readAcademicProfile,
   toHubFaculty,
 } from "@/lib/onboarding";
-
-const STORAGE_KEY = "ejust-exams-v1";
-const FACULTY_KEY = "ejust:faculty";
-const SEAT_KEY = "ejust-exam-seat-v1";
+import {
+  readExamSeat,
+  readExamsSnapshot,
+  readFaculty,
+  writeExamSeat,
+  writeExamsSnapshot,
+  writeFaculty,
+} from "@/lib/student-data";
 
 interface SeatInfo {
   hall: string;
@@ -73,6 +78,9 @@ function filterChipClass(active: boolean): string {
 
 export default function ExamsPage() {
   const { locale, t } = useLanguage();
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
   const [exams, setExams] = useState<Exam[]>([]);
   const [hubExams, setHubExams] = useState<LiveExam[]>([]);
   const [hubAvailable, setHubAvailable] = useState(true);
@@ -88,7 +96,9 @@ export default function ExamsPage() {
   const [highlightSynced, setHighlightSynced] = useState(true);
   const [filterMode, setFilterMode] = useState<FilterSelection>("auto");
   const [faculty, setFaculty] = useState<Faculty>("CSIT");
+  const [facultyChosen, setFacultyChosen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [sisOpen, setSisOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const syncedCodes = useMemo(
     () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
@@ -108,40 +118,38 @@ export default function ExamsPage() {
       setMounted(true);
       setNowMs(Date.now());
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        const savedFaculty = window.localStorage.getItem(FACULTY_KEY);
-        if (isFaculty(savedFaculty)) setFaculty(savedFaculty);
-        const shared = readAcademicProfile();
-        if (shared) setFaculty(toHubFaculty(shared.faculty));
-        if (raw) {
-          const saved = JSON.parse(raw) as { exams?: Exam[]; dailyHours?: number };
-          if (Array.isArray(saved.exams)) setExams(saved.exams);
-          if (typeof saved.dailyHours === "number") setDailyHours(saved.dailyHours);
+        const savedFaculty = readFaculty(window.localStorage, studentUser);
+        if (isFaculty(savedFaculty)) {
+          setFaculty(savedFaculty);
+          setFacultyChosen(true);
         }
-        const savedSeat = JSON.parse(window.localStorage.getItem(SEAT_KEY) ?? "null") as SeatInfo | null;
-        if (
-          savedSeat &&
-          typeof savedSeat.hall === "string" &&
-          typeof savedSeat.seat === "string" &&
-          (savedSeat.hall || savedSeat.seat)
-        ) {
-          setSeatInfo(savedSeat);
+        const shared = readAcademicProfile(studentUser);
+        if (shared) {
+          setFaculty(toHubFaculty(shared.faculty));
+          setFacultyChosen(true);
         }
+        const saved = readExamsSnapshot(window.localStorage, studentUser);
+        setExams(saved.exams);
+        setDailyHours(saved.dailyHours);
+        setSeatInfo(readExamSeat(window.localStorage, studentUser));
       } catch {
         // corrupt storage — keep the local planner empty
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [studentUser, userScope]);
 
   useEffect(() => {
     const applyProfile = () => {
-      const shared = readAcademicProfile();
-      if (shared) setFaculty(toHubFaculty(shared.faculty));
+      const shared = readAcademicProfile(studentUser);
+      if (shared) {
+        setFaculty(toHubFaculty(shared.faculty));
+        setFacultyChosen(true);
+      }
     };
     window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
     return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
-  }, []);
+  }, [studentUser, userScope]);
 
   // Live exams are the source of truth; local exams are the student's own additions.
   useEffect(() => {
@@ -172,30 +180,29 @@ export default function ExamsPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ exams, dailyHours }));
+      writeExamsSnapshot(window.localStorage, studentUser, { exams, dailyHours });
     } catch {
       // storage unavailable
     }
-  }, [exams, dailyHours, mounted]);
+  }, [exams, dailyHours, mounted, studentUser, userScope]);
+
+  useEffect(() => {
+    if (!mounted || !facultyChosen) return;
+    try {
+      writeFaculty(window.localStorage, studentUser, faculty);
+    } catch {
+      // storage unavailable
+    }
+  }, [faculty, facultyChosen, mounted, studentUser, userScope]);
 
   useEffect(() => {
     if (!mounted) return;
     try {
-      window.localStorage.setItem(FACULTY_KEY, faculty);
+      writeExamSeat(window.localStorage, studentUser, seatInfo);
     } catch {
       // storage unavailable
     }
-  }, [faculty, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      if (seatInfo) window.localStorage.setItem(SEAT_KEY, JSON.stringify(seatInfo));
-      else window.localStorage.removeItem(SEAT_KEY);
-    } catch {
-      // storage unavailable
-    }
-  }, [mounted, seatInfo]);
+  }, [mounted, seatInfo, studentUser, userScope]);
 
   function saveSeat() {
     const hall = hallInput.trim();
@@ -279,7 +286,7 @@ export default function ExamsPage() {
 
   return (
     <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadEventIcs(upcoming.map(({ exam }) => examEvent(exam)), "ejust-exams.ics", "EJUST Exams")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.export")}</button>}>
-      <SisSyncGuide />
+      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="sr-only">Exam Countdown &amp; Study Planner</h1>
@@ -289,6 +296,21 @@ export default function ExamsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSisOpen(true)}
+            className="print:hidden rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+          >
+            {t("empty.importSis")}
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("add-exam-form")?.scrollIntoView({ behavior: "smooth" })}
+            className="print:hidden inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <Plus size={13} />
+            {t("empty.addExam")}
+          </button>
           {synced.courses.length > 0 && (
             <label className="flex cursor-pointer items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
               <input
@@ -345,7 +367,10 @@ export default function ExamsPage() {
             {t("study.faculty")}
             <select
               value={faculty}
-              onChange={(event) => setFaculty(event.target.value as Faculty)}
+              onChange={(event) => {
+                setFaculty(event.target.value as Faculty);
+                setFacultyChosen(true);
+              }}
               className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-cyan-400 dark:border-slate-700 dark:bg-slate-900"
             >
               {FACULTIES.map((option) => (
@@ -367,7 +392,7 @@ export default function ExamsPage() {
       </div>
 
       <section className="mt-8 grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? "Add an exam to start the clock."}</p></div>
+        <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? t("empty.examsBody")}</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -494,13 +519,31 @@ export default function ExamsPage() {
           </p>
         )}
         {upcoming.length === 0 && !hubLoading && (
-          <p className="col-span-full rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
-            {t("study.noUpcoming")}
-          </p>
+          <section className="col-span-full rounded-xl border border-dashed border-cyan-300 bg-cyan-50/50 p-6 text-center dark:border-cyan-800 dark:bg-cyan-950/20">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t("empty.examsTitle")}</h2>
+            <p className="mx-auto mt-1 max-w-lg text-sm text-slate-600 dark:text-slate-400">{t("empty.examsBody")}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSisOpen(true)}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700"
+              >
+                {t("empty.importSis")}
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById("add-exam-form")?.scrollIntoView({ behavior: "smooth" })}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <Plus size={13} />
+                {t("empty.addExam")}
+              </button>
+            </div>
+          </section>
         )}
         {past > 0 && (
           <p className="col-span-full text-[11px] text-gray-400">
-            {past} past exam{past > 1 ? "s" : ""} hidden from the countdown.
+            {t("study.pastHidden", { n: past })}
           </p>
         )}
       </div>
@@ -509,7 +552,7 @@ export default function ExamsPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
             <Brain size={15} className="text-blue-600" />
-            Suggested study split
+            {t("study.studySplit")}
           </h2>
           <p className="mt-1 text-xs text-gray-500">
             Priorities balance difficulty, grade weight, and time left — not a guarantee, adjust as
@@ -545,7 +588,7 @@ export default function ExamsPage() {
               {allocations.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-4 text-center text-gray-400">
-                    Add an exam to generate a plan.
+                    {t("empty.examsBody")}
                   </td>
                 </tr>
               )}
@@ -554,7 +597,7 @@ export default function ExamsPage() {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-gray-900">Total study hours before each exam</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t("study.studyHours")}</h2>
           <div className="mt-2 h-56">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -562,20 +605,20 @@ export default function ExamsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v) => [`${v} h`, "Study time"]} />
+                  <Tooltip formatter={(v) => [`${v} h`, t("study.studyTime")]} />
                   <Bar dataKey="hours" fill="#60a5fa" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <p className="flex h-full items-center justify-center text-sm text-gray-400">
-                No plan yet.
+                {t("study.noPlan")}
               </p>
             )}
           </div>
         </div>
       </section>
 
-      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-4">
+      <section id="add-exam-form" className="mt-5 rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-gray-900">{t("study.addExam")}</h2>
         <form onSubmit={addExam} className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
           <Field label="Code">

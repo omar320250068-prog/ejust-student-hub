@@ -92,6 +92,19 @@ function validClassBlock(value: unknown): boolean {
   );
 }
 
+/** Legacy timetables were bare arrays; scoped student data uses a schedules map. */
+function validTimetableValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.every(validClassBlock);
+  return (
+    isRecord(value) &&
+    value.version === 1 &&
+    isRecord(value.schedules) &&
+    Object.values(value.schedules).every(
+      (blocks) => Array.isArray(blocks) && blocks.every(validClassBlock),
+    )
+  );
+}
+
 /** Reject obviously malformed or hostile values before touching storage. */
 function validValue(key: string, value: unknown): boolean {
   switch (validationKey(key)) {
@@ -109,29 +122,28 @@ function validValue(key: string, value: unknown): boolean {
       return Array.isArray(value.courses) && value.courses.every(validCourse);
     }
     case "student_custom_timetable":
-      return (
-        isRecord(value) &&
-        value.version === 1 &&
-        isRecord(value.schedules) &&
-        Object.values(value.schedules).every(
-          (blocks) => Array.isArray(blocks) && blocks.every(validClassBlock)
-        )
-      );
     case "ejust:timetable":
     case "ejust-timetable-v1":
-      return Array.isArray(value) && value.every(validClassBlock);
+      return validTimetableValue(value);
+    case "ejust:exams":
     case "ejust-exams-v1":
       return isRecord(value) && Array.isArray(value.exams) && typeof value.dailyHours === "number";
+    case "ejust:exam-seat":
     case "ejust-exam-seat-v1":
       return isRecord(value) && typeof value.hall === "string" && typeof value.seat === "string";
+    case "ejust:faculty":
+      return typeof value === "string";
     case "ejust:academic-profile":
     case "ejust:ta-profile":
     case "ejust:sis-sync":
     case "ejust-cafeteria-v1":
+    case "ejust:cafeteria":
       return isRecord(value);
     case "ejust-cafeteria-feedback-v1":
+    case "ejust:cafeteria-feedback":
       return Array.isArray(value);
     case "ejust-scholarships-saved-v1":
+    case "ejust:scholarships-saved":
       return isStringArray(value);
     case "ejust-locale":
       return value === "en" || value === "ar" || value === "ja";

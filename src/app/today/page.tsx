@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,21 +13,22 @@ import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import type { HubNoticeCategory, LiveNotice } from "@/lib/hub-feed";
 import { inferFacultyFromCourseCode, isFaculty, type Faculty } from "@/lib/faculty";
 import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
-import { DAYS as TT_DAYS, toMinutes, type ClassBlock } from "@/lib/timetable";
-import { computeStats, formatGpa, type Course } from "@/lib/gpa";
-import { allocateStudy, formatExamDate, type Exam } from "@/lib/exams";
+import {
+  DEFAULT_DAILY_HOURS,
+  readTodaySnapshot,
+  selectNextClass,
+  selectTodaysClasses,
+  type TodaySnapshot,
+} from "@/lib/student-data";
+import { computeStats, formatGpa } from "@/lib/gpa";
+import { allocateStudy, formatExamDate } from "@/lib/exams";
 import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
-import { DAYS as CAF_DAYS, formatEgp, itemById, type DayName } from "@/data/cafeteria";
+import { DAYS as CAF_DAYS, formatEgp, itemById } from "@/data/cafeteria";
 import CampusBackground from "@/components/CampusBackground";
 import DataBackupPanel from "@/components/DataBackupPanel";
 import MeritPanel from "@/components/MeritPanel";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import OnboardingWizard from "@/components/OnboardingWizard";
-
-const KEYS = {
-  timetable: "ejust-timetable-v1", gpa: "ejust:gpa", legacyGpa: "ejust-gpa-v1", exams: "ejust-exams-v1",
-  cafeteria: "ejust-cafeteria-v1", savedScholarships: "ejust-scholarships-saved-v1",
-};
 
 const CATEGORY_LABEL: Record<HubNoticeCategory, TranslationKey> = {
   ACADEMIC: "dashboard.categoryAcademic",
@@ -35,26 +37,12 @@ const CATEGORY_LABEL: Record<HubNoticeCategory, TranslationKey> = {
   EVENT: "dashboard.categoryEvent",
 };
 
-interface GpaData { courses: Course[]; targetGpa: number; degreeCredits: number }
-interface ExamsData { exams: Exam[]; dailyHours: number }
-interface CafeteriaData { trays: Partial<Record<DayName, string[]>>; budget: number }
-interface Snapshot {
-  timetable: ClassBlock[]; gpa: GpaData | null; exams: ExamsData | null;
-  cafeteria: CafeteriaData | null; saved: string[];
-}
-
-function readJson<T>(key: string): T | null {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
 export default function TodayPage() {
   const { locale, t } = useLanguage();
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
+  const [snapshot, setSnapshot] = useState<TodaySnapshot | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [notices, setNotices] = useState<LiveNotice[]>([]);
   const [noticesAvailable, setNoticesAvailable] = useState(true);
@@ -65,33 +53,31 @@ export default function TodayPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setNowMs(Date.now());
-      setSnapshot({
-        timetable: readJson<ClassBlock[]>(KEYS.timetable) ?? [],
-        gpa: readJson<GpaData>(KEYS.gpa) ?? readJson<GpaData>(KEYS.legacyGpa),
-        exams: readJson<ExamsData>(KEYS.exams),
-        cafeteria: readJson<CafeteriaData>(KEYS.cafeteria),
-        saved: readJson<string[]>(KEYS.savedScholarships) ?? [],
-      });
+      setSnapshot(readTodaySnapshot(window.localStorage, studentUser));
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [studentUser, userScope]);
 
-  // A wizard-saved profile is the preferred faculty source; fall back to the
-  // faculty inferred from the student's saved timetable blocks.
+  // A wizard-saved profile is the preferred faculty source; otherwise use the
+  // faculty saved with the account or inferred from the student's own classes.
   useEffect(() => {
     const applyProfile = () => {
-      const profile = readAcademicProfile();
+      const profile = readAcademicProfile(studentUser);
       setProfileFaculty(profile ? toHubFaculty(profile.faculty) : null);
     };
     applyProfile();
     window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
     return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
-  }, []);
+  }, [studentUser, userScope]);
 
-  const faculty = useMemo(
-    () => profileFaculty ?? snapshot?.timetable.find((block) => block.faculty)?.faculty ?? "CSIT",
-    [profileFaculty, snapshot]
-  );
+  const faculty = useMemo(() => {
+    if (profileFaculty) return profileFaculty;
+    if (snapshot?.faculty && isFaculty(snapshot.faculty)) return snapshot.faculty;
+    const inferred = snapshot?.timetable
+      .map((block) => inferFacultyFromCourseCode(block.courseCode))
+      .find((value): value is Faculty => isFaculty(value));
+    return inferred ?? "SHARED";
+  }, [profileFaculty, snapshot]);
 
   // Active notices are scoped to the viewer's faculty and synced courses by the API.
   useEffect(() => {
@@ -121,11 +107,13 @@ export default function TodayPage() {
   const model = useMemo(() => {
     if (nowMs === null || snapshot === null) return null;
     const now = new Date(nowMs);
-    const classes = snapshot.timetable
-      .filter((item) => item.day === TT_DAYS[now.getDay()])
-      .toSorted((a, b) => toMinutes(a.start) - toMinutes(b.start));
-    const nextClass = classes.find((item) => toMinutes(item.start) >= now.getHours() * 60 + now.getMinutes()) ?? null;
-    const nextExam = allocateStudy(snapshot.exams?.exams ?? [], snapshot.exams?.dailyHours ?? 3, now)[0] ?? null;
+    const classes = selectTodaysClasses(snapshot.timetable, now);
+    const nextClass = selectNextClass(classes, now);
+    const nextExam = allocateStudy(
+      snapshot.exams?.exams ?? [],
+      snapshot.exams?.dailyHours ?? DEFAULT_DAILY_HOURS,
+      now,
+    )[0] ?? null;
     const gpa = snapshot.gpa
       ? computeStats(
           snapshot.gpa.courses,
@@ -168,7 +156,7 @@ export default function TodayPage() {
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative overflow-hidden rounded-[2rem] border border-white/25 bg-white/10 p-6 shadow-2xl shadow-slate-950/20 backdrop-blur-md sm:p-9">
           <div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="relative max-w-3xl">
-            <div className="flex items-center gap-2 text-sm text-cyan-100"><Sun size={17} className="text-amber-300" /><span>{model?.date ?? "Loading your day…"}</span></div>
+            <div className="flex items-center gap-2 text-sm text-cyan-100"><Sun size={17} className="text-amber-300" /><span>{model?.date ?? t("empty.loading")}</span></div>
             <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-6xl">{model?.greeting ?? t("dashboard.title")}</h1>
             <p className="mt-4 max-w-xl text-lg leading-8 text-slate-200">{t("dashboard.welcome")}</p>
             <p className="mt-2 text-sm text-slate-300">{t("dashboard.date")}</p>
@@ -272,13 +260,29 @@ export default function TodayPage() {
         {model && (
           <section className="mt-6 grid gap-3 lg:grid-cols-3">
             <Insight icon={<CalendarDays size={16} />} title={t("dashboard.classes")}>
-              {model.classes.length ? <div className="space-y-2">{model.classes.slice(0, 3).map((item) => <div key={item.id} className="flex gap-3 text-sm"><span className="font-mono text-xs text-cyan-200">{item.start}</span><span className="truncate text-slate-200">{item.courseCode} {item.title}</span></div>)}</div> : <Empty href="/timetable" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+              {model.classes.length
+                ? <div className="space-y-2">{model.classes.slice(0, 3).map((item) => <div key={item.id} className="flex gap-3 text-sm"><span className="font-mono text-xs text-cyan-200">{item.start}</span><span className="truncate text-slate-200">{item.courseCode} {item.title}</span></div>)}</div>
+                : <Empty href="/timetable" title={t("empty.classesTitle")} body={t("empty.classesBody")} cta={t("dashboard.plan")} />}
             </Insight>
-            <Insight icon={<AlarmClock size={16} />} title={t("dashboard.nextExam")}>
-              {model.nextExam ? <><p className="text-lg font-semibold text-white">{model.nextExam.exam.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextExam.exam.title}</p><p className="mt-3 text-xs text-amber-200">{formatExamDate(model.nextExam.exam.date)} · {model.nextExam.perDayMin} min/day</p></> : <Empty href="/exams" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+            <Insight icon={<BookOpen size={16} />} title={t("dashboard.nextClass")}>
+              {model.nextClass
+                ? <><p className="text-lg font-semibold text-white">{model.nextClass.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextClass.title}</p><p className="mt-3 text-xs text-amber-200">{model.nextClass.start}–{model.nextClass.end}{model.nextClass.location ? ` · ${model.nextClass.location}` : ""}</p></>
+                : <Empty href="/timetable" title={t("empty.nextClassTitle")} body={t("empty.nextClassBody")} cta={t("dashboard.plan")} />}
+            </Insight>
+            <Insight icon={<AlarmClock size={16} />} title={t("dashboard.upcomingExams")}>
+              {model.nextExam
+                ? <><p className="text-lg font-semibold text-white">{model.nextExam.exam.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextExam.exam.title}</p><p className="mt-3 text-xs text-amber-200">{formatExamDate(model.nextExam.exam.date)} · {t("dashboard.minPerDay", { n: model.nextExam.perDayMin })}</p></>
+                : <Empty href="/exams" title={t("empty.upcomingTitle")} body={t("empty.upcomingBody")} cta={t("dashboard.plan")} />}
+            </Insight>
+            <Insight icon={<GraduationCap size={16} />} title={t("dashboard.gpa")}>
+              {model.gpa
+                ? <><p className="text-lg font-semibold text-white">{formatGpa(model.gpa.currentGpa)}</p><p className="mt-1 text-sm text-slate-300">{model.gpa.completedCredits} / {model.gpa.totalCredits} credits</p></>
+                : <Empty href="/gpa" title={t("empty.gpaTitle")} body={t("empty.gpaBody")} cta={t("dashboard.plan")} />}
             </Insight>
             <Insight icon={<Award size={16} />} title={t("dashboard.scholarship")}>
-              {model.scholarship ? <><p className="truncate text-lg font-semibold text-white">{model.scholarship.scholarship.name}</p><p className="mt-1 text-sm text-slate-300">{model.scholarship.scholarship.country} · {formatDeadline(model.scholarship.scholarship.deadline)}</p><p className="mt-3 text-xs text-amber-200">{model.scholarship.days} days left</p></> : <Empty href="/scholarships" text={t("dashboard.empty")} cta={t("dashboard.plan")} />}
+              {model.scholarship
+                ? <><p className="truncate text-lg font-semibold text-white">{model.scholarship.scholarship.name}</p><p className="mt-1 text-sm text-slate-300">{model.scholarship.scholarship.country} · {formatDeadline(model.scholarship.scholarship.deadline)}</p><p className="mt-3 text-xs text-amber-200">{t("dashboard.daysLeft", { n: model.scholarship.days })}</p></>
+                : <Empty href="/scholarships" title={t("empty.savedTitle")} body={t("empty.savedBody")} cta={t("dashboard.plan")} />}
             </Insight>
           </section>
         )}
@@ -296,6 +300,6 @@ function Insight({ icon, title, children }: { icon: React.ReactNode; title: stri
   return <article className="min-h-36 rounded-2xl border border-white/20 bg-slate-950/40 p-5 shadow-xl backdrop-blur-md"><h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">{icon}<span>{title}</span></h2><div className="mt-4">{children}</div></article>;
 }
 
-function Empty({ href, text, cta }: { href: string; text: string; cta: string }) {
-  return <div className="text-sm text-slate-400"><p>{text}</p><Link href={href} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-white">{cta}<ArrowUpRight size={13} /></Link></div>;
+function Empty({ href, title, body, cta }: { href: string; title: string; body: string; cta: string }) {
+  return <div className="text-sm text-slate-400"><p className="font-semibold text-slate-200">{title}</p><p className="mt-1 text-xs leading-5">{body}</p><Link href={href} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-white">{cta}<ArrowUpRight size={13} /></Link></div>;
 }

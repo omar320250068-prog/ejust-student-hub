@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Check, Info, Plus, Send, Trash2, UtensilsCrossed, Wallet } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { CampusLifeShell } from "@/components/ExperienceShells";
 import { DAYS, PERIODS, formatEgp, itemById, menuFor, type DayName } from "@/data/cafeteria";
+import {
+  readCafeteria,
+  readCafeteriaFeedback,
+  writeCafeteria,
+  writeCafeteriaFeedback,
+} from "@/lib/student-data";
 
-const STORAGE_KEY = "ejust-cafeteria-v1";
-const FEEDBACK_KEY = "ejust-cafeteria-feedback-v1";
 type Trays = Partial<Record<DayName, string[]>>;
 interface FeedbackEntry { text: string; at: string }
 
 export default function CafeteriaPage() {
   const { t } = useLanguage();
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
   const [trays, setTrays] = useState<Trays>({});
   const [budget, setBudget] = useState(120);
   const [day, setDay] = useState<DayName | null>(null);
@@ -26,29 +34,30 @@ export default function CafeteriaPage() {
       const current = DAYS[new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6];
       setDay(current); setMounted(true);
       try {
-        const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as { trays?: Trays; budget?: number };
-        if (saved.trays) setTrays(saved.trays);
-        if (typeof saved.budget === "number") setBudget(saved.budget);
-        const savedFeedback = JSON.parse(window.localStorage.getItem(FEEDBACK_KEY) ?? "[]") as FeedbackEntry[];
-        if (Array.isArray(savedFeedback)) {
-          setFeedbackList(
-            savedFeedback.filter(
-              (entry) => entry && typeof entry.text === "string" && typeof entry.at === "string"
-            )
-          );
+        const saved = readCafeteria(window.localStorage, studentUser);
+        if (saved) {
+          setTrays(saved.trays);
+          setBudget(saved.budget);
         }
+        setFeedbackList(
+          readCafeteriaFeedback(window.localStorage, studentUser).flatMap((entry) =>
+            typeof entry.at === "string" && typeof entry.text === "string"
+              ? [{ text: entry.text, at: entry.at }]
+              : [],
+          ),
+        );
       } catch { /* use defaults */ }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [studentUser, userScope]);
 
   useEffect(() => {
-    if (mounted) window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ trays, budget }));
-  }, [budget, mounted, trays]);
+    if (mounted) writeCafeteria(window.localStorage, studentUser, { trays, budget });
+  }, [budget, mounted, trays, studentUser, userScope]);
 
   useEffect(() => {
-    if (mounted) window.localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedbackList));
-  }, [feedbackList, mounted]);
+    if (mounted) writeCafeteriaFeedback(window.localStorage, studentUser, feedbackList);
+  }, [feedbackList, mounted, studentUser, userScope]);
 
   function submitFeedback() {
     const text = feedback.trim();

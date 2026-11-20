@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useSession } from "next-auth/react";
 import { AlertTriangle, Download, Plus, Trash2, X } from "lucide-react";
 import {
   type ClassBlock,
@@ -21,6 +22,11 @@ import {
   toTimetableGroup,
   toTimetableTrack,
 } from "@/lib/onboarding";
+import {
+  readTimetableSnapshot,
+  writeTimetableSnapshot,
+  type TimetableSnapshot,
+} from "@/lib/student-data";
 
 type Faculty = "CSIT" | "Engineering" | "Business" | "FOP" | "BAS" | "FAD";
 type AcademicYear = 1 | 2 | 3 | 4 | 5;
@@ -53,11 +59,6 @@ interface ApiMeeting {
   semester: string;
 }
 
-interface SavedTimetable {
-  version: 1;
-  schedules: Record<string, ClassBlock[]>;
-}
-
 interface OfficialState {
   key: string;
   meetings: ApiMeeting[];
@@ -65,8 +66,6 @@ interface OfficialState {
   error: boolean;
 }
 
-const STORAGE_KEY = "student_custom_timetable";
-const LEGACY_KEYS = ["ejust:timetable", "ejust-timetable-v1"];
 const GRID_START = 9 * 60;
 const GRID_END = 16 * 60;
 const HOUR_PX = 68;
@@ -215,29 +214,35 @@ function isCustomBlock(block: ClassBlock): boolean {
 
 export default function TimetablePage() {
   const { t, locale } = useLanguage();
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  // No official column is loaded until the student has a profile or picks filters.
+  const [profileReady, setProfileReady] = useState(false);
   // Keyed by column so a profile change shows loading without an effect-time setState.
   const [officialState, setOfficialState] = useState<OfficialState>({
     key: columnKeyFor(DEFAULT_PROFILE),
     meetings: [],
-    loading: true,
+    loading: false,
     error: false,
   });
   const [customBlocks, setCustomBlocks] = useState<ClassBlock[]>([]);
   // Persisted snapshots live in a ref: they mirror localStorage, never drive renders.
-  const savedRef = useRef<SavedTimetable>({ version: 1, schedules: {} });
+  const savedRef = useRef<TimetableSnapshot>({ version: 1, schedules: {} });
   const [ready, setReady] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [sisOpen, setSisOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const synced = useSyncedCourses();
   const [onlySynced, setOnlySynced] = useState(false);
 
-  // The onboarding wizard writes the shared profile; adopt it here so the
+  // The onboarding wizard writes the account profile; adopt it here so the
   // timetable column and section filters are personalized immediately.
   useEffect(() => {
     const applyProfile = () => {
-      const shared = readAcademicProfile();
+      const shared = readAcademicProfile(studentUser);
       if (!shared) return;
       setProfile((current) => ({
         ...current,
@@ -247,45 +252,38 @@ export default function TimetablePage() {
         track: toTimetableTrack(shared.track),
         section: shared.section,
       }));
+      setProfileReady(true);
     };
     applyProfile();
     window.addEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
     return () => window.removeEventListener(ACADEMIC_PROFILE_EVENT, applyProfile);
-  }, []);
+  }, [studentUser]);
 
   const columnKey = useMemo(() => columnKeyFor(profile), [profile]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const legacy = LEGACY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
-        let loaded: ClassBlock[] = [];
-        if (raw) {
-          const parsed = JSON.parse(raw) as SavedTimetable;
-          if (parsed?.version === 1 && parsed.schedules) {
-            savedRef.current = parsed;
-            loaded =
-              parsed.schedules[profileKey(DEFAULT_PROFILE)] ??
-              parsed.schedules[legacyProfileKey(DEFAULT_PROFILE)] ??
-              [];
-          }
-        } else if (legacy) {
-          const legacyBlocks = JSON.parse(legacy) as ClassBlock[];
-          if (Array.isArray(legacyBlocks)) {
-            savedRef.current = {
-              version: 1,
-              schedules: {
-                [profileKey(DEFAULT_PROFILE)]: legacyBlocks.filter(isCustomBlock).map((block) => ({
-                  ...block,
-                  source: "custom" as const,
-                })),
-              },
-            };
-            loaded = savedRef.current.schedules[profileKey(DEFAULT_PROFILE)];
-          }
-        }
-        setCustomBlocks(loaded.filter(isCustomBlock).map((block) => ({ ...block, source: "custom" as const })));
+        const snapshot = readTimetableSnapshot(window.localStorage, studentUser);
+        savedRef.current = snapshot;
+        const shared = readAcademicProfile(studentUser);
+        const current: Profile = shared
+          ? {
+              ...DEFAULT_PROFILE,
+              faculty: toTimetableFaculty(shared.faculty),
+              year: shared.year,
+              group: toTimetableGroup(shared.group),
+              track: toTimetableTrack(shared.track),
+              section: shared.section,
+            }
+          : DEFAULT_PROFILE;
+        const loaded =
+          snapshot.schedules[profileKey(current)] ??
+          snapshot.schedules[legacyProfileKey(current)] ??
+          [];
+        setCustomBlocks(
+          loaded.filter(isCustomBlock).map((block) => ({ ...block, source: "custom" as const })),
+        );
       } catch {
         setCustomBlocks([]);
       } finally {
@@ -293,20 +291,22 @@ export default function TimetablePage() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [studentUser, userScope]);
 
   useEffect(() => {
     if (!ready) return;
-    const next = {
+    const next: TimetableSnapshot = {
       ...savedRef.current,
       schedules: { ...savedRef.current.schedules, [profileKey(profile)]: customBlocks },
     };
     savedRef.current = next;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    for (const key of LEGACY_KEYS) localStorage.setItem(key, JSON.stringify(customBlocks));
-  }, [customBlocks, profile, ready]);
+    writeTimetableSnapshot(window.localStorage, studentUser, next);
+  }, [customBlocks, profile, ready, studentUser, userScope]);
 
   useEffect(() => {
+    // Fresh accounts have no profile yet: keep the empty timetable instead of
+    // loading the shared official column.
+    if (!profileReady) return;
     const controller = new AbortController();
     const params = new URLSearchParams({
       columnKey,
@@ -333,7 +333,7 @@ export default function TimetablePage() {
         setOfficialState({ key: columnKey, meetings: [], loading: false, error: true });
       });
     return () => controller.abort();
-  }, [columnKey]);
+  }, [columnKey, profileReady]);
 
   const loading = officialState.key !== columnKey || officialState.loading;
   const loadError = officialState.key === columnKey && officialState.error;
@@ -371,7 +371,12 @@ export default function TimetablePage() {
     const nextSections = sectionOptions(next);
     if (!nextSections.includes(next.section)) next.section = nextSections[0];
     setProfile(next);
-    setCustomBlocks(savedRef.current.schedules[profileKey(next)] ?? []);
+    setProfileReady(true);
+    setCustomBlocks(
+      (savedRef.current.schedules[profileKey(next)] ??
+        savedRef.current.schedules[legacyProfileKey(next)] ??
+        []).filter(isCustomBlock),
+    );
   }
 
   function removeBlock(id: string) {
@@ -430,7 +435,7 @@ export default function TimetablePage() {
   return (
     <main className="min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <SisSyncGuide />
+        <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">{t("timetable.fall")}</p>
@@ -504,6 +509,30 @@ export default function TimetablePage() {
 
         {loading && <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t("timetable.loading")}</p>}
         {loadError && <p className="mt-4 text-xs font-medium text-rose-600 dark:text-rose-300">{t("timetable.error")}</p>}
+
+        {ready && !loading && visibleBlocks.length === 0 && (
+          <section className="mt-4 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/60 p-6 text-center dark:border-cyan-800 dark:bg-cyan-950/20">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t("empty.timetableTitle")}</h2>
+            <p className="mx-auto mt-1 max-w-lg text-sm text-slate-600 dark:text-slate-400">{t("empty.timetableBody")}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSisOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700"
+              >
+                {t("empty.importSis")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <Plus size={15} />
+                {t("empty.addClass")}
+              </button>
+            </div>
+          </section>
+        )}
 
         {conflicts.length > 0 && (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">

@@ -1,25 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Award, Bookmark, BookmarkCheck, Check, ExternalLink, Search } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Award, Bookmark, BookmarkCheck, Check, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { CampusLifeShell, SearchBar } from "@/components/ExperienceShells";
 import { SCHOLARSHIPS, daysUntil, formatDeadline, type Level } from "@/data/scholarships";
+import { readSavedScholarships, writeSavedScholarships } from "@/lib/student-data";
 
-const SAVED_KEY = "ejust-scholarships-saved-v1";
 const LEVELS: Level[] = ["Bachelor", "Master", "PhD"];
 
 export default function ScholarshipsPage() {
   const { t } = useLanguage();
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<Level | "all">("all");
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { const timer = window.setTimeout(() => { setMounted(true); try { setSaved(new Set(JSON.parse(window.localStorage.getItem(SAVED_KEY) ?? "[]") as string[])); } catch { /* use empty set */ } }, 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => { if (mounted) window.localStorage.setItem(SAVED_KEY, JSON.stringify([...saved])); }, [mounted, saved]);
+  useEffect(() => { const timer = window.setTimeout(() => { setMounted(true); try { setSaved(new Set(readSavedScholarships(window.localStorage, studentUser))); } catch { /* use empty set */ } }, 0); return () => window.clearTimeout(timer); }, [studentUser, userScope]);
+  useEffect(() => { if (mounted) writeSavedScholarships(window.localStorage, studentUser, [...saved]); }, [mounted, saved, studentUser, userScope]);
   const results = useMemo(() => { const needle = query.trim().toLowerCase(); return SCHOLARSHIPS.filter((item) => (!needle || `${item.name} ${item.provider} ${item.country} ${item.fields}`.toLowerCase().includes(needle)) && (level === "all" || item.levels.includes(level))).toSorted((a, b) => a.deadline.localeCompare(b.deadline)); }, [level, query]);
-  const toggle = (id: string) => setSaved((previous) => { const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const toggle = (id: string) => setSaved((previous) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   return <CampusLifeShell title={t("scholarships.title")} description={t("scholarships.subtitle")}>
     <div className="rounded-3xl border border-white/20 bg-slate-950/45 p-4 backdrop-blur-xl sm:p-5">
