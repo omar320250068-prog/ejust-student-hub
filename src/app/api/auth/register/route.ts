@@ -3,8 +3,9 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { parseAccountType, registrationRoleFields } from "@/lib/account-type";
 import { authErrorMessage, type AuthErrorCode } from "@/lib/auth-messages";
-import { detectAccountTypeFromEmail, validateEjustEmail } from "@/lib/email-otp";
+import { validateEjustEmail } from "@/lib/email-otp";
 import { ensureGrandfathered, issueOtp } from "@/lib/email-otp-store";
 import { sendVerificationEmail } from "@/lib/mailer";
 
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     return fail("invalid_request", 400);
   }
 
-  const { name, email, password } = (payload ?? {}) as Record<string, unknown>;
+  const { name, email, password, accountType } = (payload ?? {}) as Record<string, unknown>;
 
   if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80) {
     return fail("invalid_name", 400);
@@ -49,8 +50,11 @@ export async function POST(request: Request) {
     return fail("invalid_password", 400);
   }
 
+  const selectedAccountType = parseAccountType(accountType);
+  if (!selectedAccountType) return fail("invalid_request", 400);
+
   const normalizedEmail = email.trim().toLowerCase();
-  const detected = detectAccountTypeFromEmail(normalizedEmail);
+  const roleFields = registrationRoleFields(selectedAccountType);
 
   try {
     // Accounts created before this one-time migration are already verified.
@@ -73,17 +77,15 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     // No emailVerified value: the account stays unverified until OTP success.
-    // Detected TAs are queued for admin review; the email string alone never
-    // grants staff privileges (taStatus must reach APPROVED first).
+    // Self-selected TAs are queued for admin review; staff tools stay gated
+    // until an admin sets taStatus to APPROVED.
     const [created] = await db
       .insert(users)
       .values({
         name: name.trim(),
         email: normalizedEmail,
         passwordHash,
-        role: detected.role,
-        taStatus: detected.role === "TA" ? "PENDING" : "NONE",
-        ...(detected.role === "TA" ? { taAppliedAt: new Date() } : {}),
+        ...roleFields,
       })
       .returning({ id: users.id, email: users.email, role: users.role, taStatus: users.taStatus });
 

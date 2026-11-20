@@ -32,9 +32,9 @@ const TEXT: Record<AuthErrorCode, Record<Locale, string>> = {
     ja: "有効なメールアドレスを入力してください。",
   },
   email_not_ejust: {
-    en: "Use your E-JUST email (@ejust.edu.eg or @student.ejust.edu.eg).",
-    ar: "استخدم بريدك الجامعي (@ejust.edu.eg أو @student.ejust.edu.eg).",
-    ja: "E-JUST のメールアドレス（@ejust.edu.eg または @student.ejust.edu.eg）を使用してください。",
+    en: "Use your E-JUST email (any address ending in @ejust.edu.eg, including subdomains).",
+    ar: "استخدم بريدك الجامعي (أي عنوان ينتهي بـ @ejust.edu.eg، بما في ذلك النطاقات الفرعية).",
+    ja: "E-JUST のメールアドレス（@ejust.edu.eg で終わるすべてのアドレス。サブドメインも可）を使用してください。",
   },
   email_required: {
     en: "Enter your university email.",

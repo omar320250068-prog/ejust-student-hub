@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { GraduationCap, Loader2 } from "lucide-react";
 import EmailVerificationStep from "@/components/EmailVerificationStep";
+import type { AccountType } from "@/lib/account-type";
 import {
   AUTH_ERROR_TRANSLATION_KEY,
   isAuthErrorCode,
@@ -19,6 +20,8 @@ export default function SignUpPage() {
     password: "",
     confirm: "",
   });
+  // Students are the safe default; users can freely pick TA before submitting.
+  const [accountType, setAccountType] = useState<AccountType>("STUDENT");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [verification, setVerification] = useState<{
@@ -50,7 +53,7 @@ export default function SignUpPage() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, password: form.password }),
+        body: JSON.stringify({ name, email, password: form.password, accountType }),
       });
 
       const payload = (await response.json().catch(() => ({}))) as {
@@ -121,12 +124,40 @@ export default function SignUpPage() {
                   value={form.email}
                   onChange={(event) => update("email")(event.target.value)}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  placeholder="you@student.ejust.edu.eg"
+                  placeholder="you@ejust.edu.eg"
                 />
-                <span className="text-[11px] text-gray-400">
-                  @ejust.edu.eg or @student.ejust.edu.eg
-                </span>
+                <span className="text-[11px] text-gray-400">{t("auth.emailDomainHint")}</span>
               </label>
+
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="text-xs font-medium text-gray-600">{t("auth.accountType")}</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["STUDENT", "TA"] as const).map((option) => {
+                    const selected = accountType === option;
+                    return (
+                      <label
+                        key={option}
+                        className={`flex cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-center text-xs font-semibold transition focus-within:ring-2 focus-within:ring-blue-100 ${
+                          selected
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-gray-300 text-gray-600 hover:border-blue-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="accountType"
+                          value={option}
+                          checked={selected}
+                          onChange={() => setAccountType(option)}
+                          className="sr-only"
+                        />
+                        {t(option === "STUDENT" ? "auth.roleStudent" : "auth.roleTa")}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-gray-400">{t("auth.accountTypeHint")}</p>
+              </fieldset>
 
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-gray-600">{t("auth.password")}</span>

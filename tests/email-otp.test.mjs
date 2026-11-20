@@ -5,7 +5,7 @@ import {
   OTP_MAX_ATTEMPTS,
   OTP_RESEND_COOLDOWN_MS,
   canSubmitOtpAttempt,
-  detectAccountTypeFromEmail,
+  extractStudentIdFromEmail,
   generateOtpCode,
   hashOtpCode,
   isOtpExpired,
@@ -17,18 +17,25 @@ import {
 } from "../src/lib/email-otp.ts";
 import { createOtpGrant, verifyOtpGrant } from "../src/lib/email-otp-grant.ts";
 
-test("validateEjustEmail accepts both E-JUST student and staff domains", () => {
+test("validateEjustEmail accepts any local part on ejust.edu.eg and its subdomains", () => {
   for (const email of [
     "student@ejust.edu.eg",
     "STUDENT@Student.EJUST.Edu.EG",
     "  name@student.ejust.edu.eg  ",
+    "abdullah.elballah@csit.ejust.edu.eg",
+    "first.last@deep.dept.ejust.edu.eg",
+    "any-local.part+tag@ejust.edu.eg",
+    "ahmed.hindawy@ejust.edu.eg",
   ]) {
     assert.equal(validateEjustEmail(email), "ok", email);
   }
 });
 
 test("validateEjustEmail distinguishes malformed addresses from non-E-JUST ones", () => {
-  for (const email of ["someone@gmail.com", "a@ejust.com", "x@not-ejust.edu.eg"]) {
+  for (const email of [
+    "someone@gmail.com", "a@ejust.com", "x@not-ejust.edu.eg",
+    "x@evilejust.edu.eg", "x@ejust.edu.eg.attacker.com", "x@not.ejust.edu.eg.evil.com",
+  ]) {
     assert.equal(validateEjustEmail(email), "not-ejust", email);
   }
   for (const email of ["", "   ", "abc", "a@", "@ejust.edu.eg", "a b@ejust.edu.eg", 42, null]) {
@@ -40,44 +47,25 @@ test("normalizeEjustEmail trims and lowercases", () => {
   assert.equal(normalizeEjustEmail("  Name@Student.EJUST.edu.eg "), "name@student.ejust.edu.eg");
 });
 
-test("detectAccountTypeFromEmail routes student and staff E-JUST addresses", () => {
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed@student.ejust.edu.eg"), {
-    role: "STUDENT", studentId: null,
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("  AHMED@Student.EJUST.edu.eg "), {
-    role: "STUDENT", studentId: null,
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed.123456@ejust.edu.eg"), {
-    role: "STUDENT", studentId: "123456",
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed.hindawy.202400123@ejust.edu.eg"), {
-    role: "STUDENT", studentId: "202400123",
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed.123456@student.ejust.edu.eg"), {
-    role: "STUDENT", studentId: "123456",
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed.hindawy@ejust.edu.eg"), {
-    role: "TA", studentId: null,
-  });
-  assert.deepEqual(detectAccountTypeFromEmail("ahmed.el-sayed@ejust.edu.eg"), {
-    role: "TA", studentId: null,
-  });
+test("extractStudentIdFromEmail reads a trailing 6+ digit ID from any E-JUST address", () => {
+  assert.equal(extractStudentIdFromEmail("ahmed.123456@ejust.edu.eg"), "123456");
+  assert.equal(extractStudentIdFromEmail("ahmed.hindawy.202400123@csit.ejust.edu.eg"), "202400123");
+  assert.equal(extractStudentIdFromEmail("  AHMED.123456@Student.EJUST.edu.eg "), "123456");
 });
 
-test("detectAccountTypeFromEmail defaults to STUDENT for ambiguous input", () => {
+test("extractStudentIdFromEmail never infers a role and ignores non-ID addresses", () => {
   for (const value of [
     "ahmed.12345@ejust.edu.eg",
     "ahmed@ejust.edu.eg",
-    "ahmed.surname@student.ejust.edu.eg",
+    "ahmed.hindawy@csit.ejust.edu.eg",
+    "ahmed.el-sayed@ejust.edu.eg",
     "someone@gmail.com",
     "ahmed.123456@not-ejust.edu.eg",
     "",
     null,
     42,
   ]) {
-    assert.deepEqual(detectAccountTypeFromEmail(value), {
-      role: "STUDENT", studentId: null,
-    }, String(value));
+    assert.equal(extractStudentIdFromEmail(value), null, String(value));
   }
 });
 

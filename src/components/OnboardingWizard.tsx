@@ -7,7 +7,7 @@ import {
   ArrowLeft, ArrowRight, BadgeCheck, Check, ClipboardPaste, ExternalLink, GraduationCap,
   Loader2, Plus, Sparkles, Trash2, X,
 } from "lucide-react";
-import { detectAccountTypeFromEmail } from "@/lib/email-otp";
+import { extractStudentIdFromEmail } from "@/lib/email-otp";
 import { useLanguage } from "@/lib/i18n";
 import {
   persistSisSyncState,
@@ -95,8 +95,7 @@ export default function OnboardingWizard() {
   const userId = session?.user?.id;
   const isTa = session?.user?.role === "TA";
   const taStatus = session?.user?.taStatus;
-  const detection = detectAccountTypeFromEmail(session?.user?.email ?? "");
-  const detectedStudentId = detection.role === "STUDENT" ? detection.studentId : null;
+  const detectedStudentId = extractStudentIdFromEmail(session?.user?.email ?? "");
   const isRtl = locale === "ar";
   const NextIcon = isRtl ? ArrowLeft : ArrowRight;
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
