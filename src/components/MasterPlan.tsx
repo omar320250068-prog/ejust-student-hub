@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   Search,
   RotateCcw,
@@ -11,7 +12,9 @@ import {
   DoorOpen,
   Building2,
   Landmark,
+  Users,
 } from "lucide-react";
+import { detailForCode, canonicalBuildingCode, findBuildingDetail } from "@/data/building-inspector";
 import {
   CAMPUS,
   allEntities,
@@ -19,6 +22,21 @@ import {
   type EntityKind,
   type PlanEntity,
 } from "@/lib/campusTypes";
+import { defaultFreeRoomsQuery, findRoomStatuses } from "@/lib/free-rooms";
+import { useLanguage } from "@/lib/i18n";
+import {
+  mapFacultyToOffices,
+  parseMasterPlanLocation,
+  searchMasterPlan,
+  type FacultyOffice,
+  type FacultyRecord,
+  type InspectorTab,
+  type MasterPlanLocation,
+  type MasterPlanSearchResult,
+} from "@/lib/master-plan-inspector";
+import { readTimetableSnapshot } from "@/lib/student-data";
+import type { ClassBlock } from "@/lib/timetable";
+import BuildingInspector from "./BuildingInspector";
 
 const DEFAULT_VIEW = { x: 0, y: 0, w: 108, h: 104 };
 const MIN_W = 28;
@@ -176,17 +194,113 @@ const ZONE_LABELS: { text: string; x: number; y: number }[] = [
   { text: "SPORTS ZONE", x: 22, y: 78 },
 ];
 
-export default function MasterPlan() {
+export interface MasterPlanProps {
+  initialBuilding?: string;
+  initialTab?: InspectorTab;
+  initialRoom?: string;
+  initialOffice?: string;
+  initialQ?: string;
+}
+
+export default function MasterPlan({
+  initialBuilding = "",
+  initialTab = "overview",
+  initialRoom = "",
+  initialOffice = "",
+  initialQ = "",
+}: MasterPlanProps) {
   const entities = useMemo(() => allEntities(CAMPUS), []);
-  const [query, setQuery] = useState("");
+  const { t } = useLanguage();
+  const { data: session, status } = useSession();
+  const studentUser = status === "authenticated" ? session?.user : null;
+  const userScope = studentUser?.id ?? studentUser?.email ?? null;
+
+  const initial = useMemo(
+    () =>
+      parseMasterPlanLocation({
+        building: initialBuilding,
+        tab: initialTab,
+        room: initialRoom,
+        office: initialOffice,
+        q: initialQ,
+      }),
+    [initialBuilding, initialTab, initialRoom, initialOffice, initialQ],
+  );
+
+  const initialEntityId = useMemo(() => {
+    if (!initial.building) return null;
+    const code = canonicalBuildingCode(initial.building) ?? initial.building;
+    return entities.find((entity) => entity.id === code || canonicalBuildingCode(entity.id) === code)?.id ?? null;
+  }, [entities, initial.building]);
+
+  const [query, setQuery] = useState(initial.q);
   const [activeKinds, setActiveKinds] = useState<Set<EntityKind>>(new Set());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialEntityId);
   const [showRoute, setShowRoute] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [view, setView] = useState(DEFAULT_VIEW);
   const svgRef = useRef<SVGSVGElement>(null);
   const panRef = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [inspectorBuilding, setInspectorBuilding] = useState(initial.building);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(initial.tab);
+  const [highlight, setHighlight] = useState(initial.room || initial.office);
+  const [facultyOffices, setFacultyOffices] = useState<FacultyOffice[]>([]);
+  const [customClasses, setCustomClasses] = useState<ClassBlock[]>([]);
+
+  const roomWindow = useMemo(() => defaultFreeRoomsQuery(), []);
+  const roomStatuses = useMemo(
+    () => findRoomStatuses({ ...roomWindow, customClasses }),
+    [roomWindow, customClasses],
+  );
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/faculty")
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("faculty"))))
+      .then((rows: FacultyRecord[]) => {
+        if (active) setFacultyOffices(mapFacultyToOffices(rows));
+      })
+      .catch(() => {
+        if (active) setFacultyOffices([]);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const snapshot = readTimetableSnapshot(window.localStorage, studentUser);
+        setCustomClasses(Object.values(snapshot.schedules).flat());
+      } catch {
+        setCustomClasses([]);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [studentUser, userScope]);
+
+  useEffect(() => {
+    function onPopState() {
+      const params = Object.fromEntries(new URLSearchParams(window.location.search));
+      const next = parseMasterPlanLocation(params);
+      setQuery(next.q);
+      setInspectorBuilding(next.building);
+      setInspectorTab(next.tab);
+      setHighlight(next.room || next.office);
+      if (next.building) {
+        const canonical = canonicalBuildingCode(next.building) ?? next.building;
+        const entity = entities.find(
+          (item) => item.id === canonical || canonicalBuildingCode(item.id) === canonical,
+        );
+        setSelectedId(entity?.id ?? canonical);
+        if (entity) focusOn(entity);
+      } else {
+        setSelectedId(null);
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [entities]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -218,6 +332,32 @@ export default function MasterPlan() {
   const selected = entities.find((e) => e.id === selectedId) ?? null;
   const hovered = entities.find((e) => e.id === hoveredId) ?? null;
 
+  const searchResults = useMemo<MasterPlanSearchResult[]>(
+    () => searchMasterPlan(query, facultyOffices, roomStatuses),
+    [query, facultyOffices, roomStatuses],
+  );
+
+  const inspectorDetail = useMemo(
+    () => (inspectorBuilding ? detailForCode(inspectorBuilding) : null),
+    [inspectorBuilding],
+  );
+
+  const inspectorRooms = useMemo(
+    () =>
+      inspectorBuilding
+        ? roomStatuses.filter(
+            (room) =>
+              canonicalBuildingCode(room.building) === canonicalBuildingCode(inspectorBuilding),
+          )
+        : [],
+    [roomStatuses, inspectorBuilding],
+  );
+
+  const resultBuildingIds = useMemo(
+    () => new Set(searchResults.map((result) => canonicalBuildingCode(result.buildingCode)).filter(Boolean)),
+    [searchResults],
+  );
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return entities.filter((e) => {
@@ -227,10 +367,11 @@ export default function MasterPlan() {
         e.name.toLowerCase().includes(q) ||
         e.id.toLowerCase().includes(q) ||
         (e.zone ?? "").toLowerCase().includes(q) ||
-        (e.category ?? "").toLowerCase().includes(q)
+        (e.category ?? "").toLowerCase().includes(q) ||
+        resultBuildingIds.has(canonicalBuildingCode(e.id))
       );
     });
-  }, [entities, query, activeKinds]);
+  }, [entities, query, activeKinds, resultBuildingIds]);
 
   const visibleIds = useMemo(() => new Set(visible.map((e) => e.id)), [visible]);
 
@@ -243,15 +384,96 @@ export default function MasterPlan() {
     });
   }
 
-  function selectEntity(e: PlanEntity) {
-    setSelectedId(e.id);
-    setShowRoute(false);
+  function writeUrl(
+    patch: Partial<Record<keyof MasterPlanLocation, string>>,
+    mode: "push" | "replace",
+  ) {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(patch)) {
+      const text = (value ?? "").trim();
+      if (text) params.set(key, text);
+      else params.delete(key);
+    }
+    const queryString = params.toString();
+    const url = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
+    if (mode === "push") window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }
+
+  function focusOn(entity: PlanEntity) {
     setView({
-      x: e.coordinates.x - DEFAULT_VIEW.w / 4,
-      y: e.coordinates.y - DEFAULT_VIEW.h / 4,
+      x: entity.coordinates.x - DEFAULT_VIEW.w / 4,
+      y: entity.coordinates.y - DEFAULT_VIEW.h / 4,
       w: DEFAULT_VIEW.w / 2,
       h: DEFAULT_VIEW.h / 2,
     });
+  }
+
+  function openInspector(
+    code: string,
+    tab: InspectorTab,
+    highlighted = "",
+    search = "",
+  ) {
+    const canonical = canonicalBuildingCode(code) ?? code;
+    const entity = entities.find(
+      (item) => item.id === canonical || canonicalBuildingCode(item.id) === canonical,
+    );
+    setInspectorBuilding(canonical);
+    setInspectorTab(tab);
+    setHighlight(highlighted);
+    setSelectedId(entity?.id ?? canonical);
+    setShowRoute(false);
+    if (entity) focusOn(entity);
+    writeUrl(
+      {
+        building: canonical,
+        tab,
+        room: tab === "rooms" ? highlighted : "",
+        office: tab === "offices" ? highlighted : "",
+        q: search,
+      },
+      "push",
+    );
+  }
+
+  function closeInspector() {
+    setInspectorBuilding("");
+    setHighlight("");
+    setSelectedId(null);
+    setShowRoute(false);
+    writeUrl({ building: "", tab: "", room: "", office: "", q: "" }, "replace");
+  }
+
+  function changeInspectorTab(next: InspectorTab) {
+    setInspectorTab(next);
+    writeUrl(
+      {
+        tab: next,
+        room: next === "rooms" ? highlight : "",
+        office: next === "offices" ? highlight : "",
+      },
+      "replace",
+    );
+  }
+
+  function openResult(result: MasterPlanSearchResult) {
+    const search = query.trim();
+    if (result.kind === "building") openInspector(result.buildingCode, result.tab, "", search);
+    else openInspector(result.buildingCode, result.tab, result.highlight, search);
+  }
+
+  function selectEntity(e: PlanEntity) {
+    if (e.kind === "building" || findBuildingDetail(e.id)) {
+      openInspector(e.id, "overview");
+      return;
+    }
+    setInspectorBuilding("");
+    setHighlight("");
+    setSelectedId(e.id);
+    setShowRoute(false);
+    focusOn(e);
   }
 
   const directions = useMemo(() => {
@@ -331,7 +553,8 @@ export default function MasterPlan() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search buildings, zones, gates…"
+              placeholder={t("inspector.searchPlaceholder")}
+              aria-label={t("inspector.searchPlaceholder")}
               className="w-full rounded-lg border border-gray-200 py-1.5 pl-8 pr-2 text-sm outline-none focus:border-blue-400"
             />
           </div>
@@ -354,6 +577,35 @@ export default function MasterPlan() {
             })}
           </div>
         </div>
+        {query.trim() ? (
+          <ul className="flex-1 overflow-y-auto p-2">
+            <li className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {t("inspector.searchResults")}
+            </li>
+            {searchResults.map((result) => {
+              const ResultIcon =
+                result.kind === "building" ? Building2 : result.kind === "room" ? DoorOpen : Users;
+              return (
+                <li key={`${result.kind}-${result.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => openResult(result)}
+                    className="mb-0.5 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    <ResultIcon size={14} className="shrink-0 text-gray-400" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{result.label}</span>
+                      <span className="block truncate text-[11px] text-gray-400">{result.detail}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {searchResults.length === 0 && (
+              <li className="px-2 py-6 text-center text-sm text-gray-400">{t("inspector.noMatches")}</li>
+            )}
+          </ul>
+        ) : (
         <ul className="flex-1 overflow-y-auto p-2">
           {visible.map((e) => {
             const KindIcon = KIND_META[e.kind].icon;
@@ -386,6 +638,7 @@ export default function MasterPlan() {
             <li className="px-2 py-6 text-center text-sm text-gray-400">No matches.</li>
           )}
         </ul>
+        )}
         <div className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
           {visible.length} of {entities.length} places · scroll to zoom, drag to pan
         </div>
@@ -498,16 +751,24 @@ export default function MasterPlan() {
               return (
                 <g
                   key={e.id}
+                  role="button"
+                  tabIndex={isVisible ? 0 : -1}
+                  aria-label={`${e.name} (${e.id}) — ${t("inspector.title")}`}
                   opacity={opacity}
                   onPointerEnter={() => setHoveredId(e.id)}
                   onPointerLeave={() => setHoveredId(null)}
+                  onFocus={() => setHoveredId(e.id)}
+                  onBlur={() => setHoveredId(null)}
                   onClick={() => {
-                    if (isVisible) {
-                      setSelectedId(e.id);
-                      setShowRoute(false);
+                    if (isVisible) selectEntity(e);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      if (isVisible) selectEntity(e);
                     }
                   }}
-                  style={{ cursor: isVisible ? "pointer" : "default" }}
+                  style={{ cursor: isVisible ? "pointer" : "default", outline: "none" }}
                 >
                   <rect
                     x={x}
@@ -517,7 +778,8 @@ export default function MasterPlan() {
                     rx={0.7}
                     fill={isSelected ? "#bfdbfe" : isHovered ? "#dbeafe" : fill === "#e5e7eb" ? "#e5e7eb" : fill}
                     stroke={isSelected ? "#2563eb" : isHovered ? "#60a5fa" : "#9ca3af"}
-                    strokeWidth={isSelected ? 0.7 : 0.35}
+                    strokeWidth={isSelected || isHovered ? 0.7 : 0.35}
+                    strokeDasharray={isHovered && !isSelected ? "1 0.6" : undefined}
                   />
                   <text
                     x={e.coordinates.x}
@@ -548,16 +810,24 @@ export default function MasterPlan() {
             return (
               <g
                 key={e.id}
+                role="button"
+                tabIndex={isVisible ? 0 : -1}
+                aria-label={`${e.name} (${e.id})`}
                 opacity={opacity}
                 onPointerEnter={() => setHoveredId(e.id)}
                 onPointerLeave={() => setHoveredId(null)}
+                onFocus={() => setHoveredId(e.id)}
+                onBlur={() => setHoveredId(null)}
                 onClick={() => {
-                  if (isVisible) {
-                    setSelectedId(e.id);
-                    setShowRoute(false);
+                  if (isVisible) selectEntity(e);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    if (isVisible) selectEntity(e);
                   }
                 }}
-                style={{ cursor: isVisible ? "pointer" : "default" }}
+                style={{ cursor: isVisible ? "pointer" : "default", outline: "none" }}
               >
                 {isSelected && (
                   <circle
@@ -660,7 +930,7 @@ export default function MasterPlan() {
           </div>
         )}
 
-        {selected && (
+        {selected && !inspectorBuilding && (
           <div className="absolute bottom-3 right-3 flex max-h-[calc(100%-1.5rem)] w-80 max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
             <div className="flex items-start justify-between gap-2 border-b border-gray-100 p-3">
               <div>
@@ -761,6 +1031,19 @@ export default function MasterPlan() {
           </div>
         )}
       </div>
+
+      {inspectorDetail && (
+        <BuildingInspector
+          detail={inspectorDetail}
+          tab={inspectorTab}
+          rooms={inspectorRooms}
+          offices={facultyOffices}
+          query={query}
+          highlight={highlight}
+          onTabChange={changeInspectorTab}
+          onClose={closeInspector}
+        />
+      )}
     </div>
   );
 }

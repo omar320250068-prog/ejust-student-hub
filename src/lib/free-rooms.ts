@@ -5,6 +5,7 @@
  */
 
 import officialTimetable from "../data/timetable-fall-2026.json" with { type: "json" };
+import { decodeFloor } from "./room-parser.ts";
 import { DAYS, toMinutes, type ClassBlock, type Day } from "./timetable.ts";
 
 const CAIRO_TIME_ZONE = "Africa/Cairo";
@@ -30,6 +31,14 @@ export interface FreeRoom {
   building: string;
   room: string;
   label: string;
+  nextClass: ScheduledSlot | null;
+}
+
+/** A room's state during the requested window, used by the Building Inspector. */
+export interface RoomStatus extends RoomSchedule {
+  floor: string;
+  status: "free" | "occupied";
+  activeClass: ScheduledSlot | null;
   nextClass: ScheduledSlot | null;
 }
 
@@ -167,6 +176,43 @@ export function findFreeRooms(query: FreeRoomsQuery): FreeRoom[] {
       building: room.building,
       room: room.room,
       label: room.label,
+      nextClass: daySlots.find((slot) => toMinutes(slot.start) >= windowEnd) ?? null,
+    });
+  }
+
+  return results.toSorted(
+    (a, b) => a.building.localeCompare(b.building) || a.room.localeCompare(b.room),
+  );
+}
+
+/**
+ * Return every scheduled room with an explicit free/occupied state for the
+ * requested Cairo-time window. `FreeRoomsPanel` only needs free rooms, while
+ * the Building Inspector must also show what is occupying a room and when the
+ * next class starts.
+ */
+export function findRoomStatuses(query: FreeRoomsQuery): RoomStatus[] {
+  const day = normalizeRoomDay(query.day);
+  const windowStart = toMinutes(query.start);
+  const windowEnd = toMinutes(query.end);
+  if (!day || !Number.isFinite(windowStart) || !Number.isFinite(windowEnd) || windowEnd <= windowStart) {
+    return [];
+  }
+
+  const filter = (query.filter ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const results: RoomStatus[] = [];
+
+  for (const room of buildRoomSchedule(query.customClasses ?? []).values()) {
+    if (filter && !room.label.toLowerCase().replace(/[^a-z0-9]/g, "").includes(filter)) continue;
+    const daySlots = room.slots
+      .filter((slot) => slot.day === day)
+      .toSorted((a, b) => toMinutes(a.start) - toMinutes(b.start));
+    const activeClass = daySlots.find((slot) => overlaps(windowStart, windowEnd, slot)) ?? null;
+    results.push({
+      ...room,
+      floor: decodeFloor(room.room),
+      status: activeClass ? "occupied" : "free",
+      activeClass,
       nextClass: daySlots.find((slot) => toMinutes(slot.start) >= windowEnd) ?? null,
     });
   }

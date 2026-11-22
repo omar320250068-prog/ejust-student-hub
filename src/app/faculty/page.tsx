@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
 import PrintHeader from "@/components/PrintHeader";
-import { Search, Building2 } from "lucide-react";
+import { Search, Building2, MapPin } from "lucide-react";
+import {
+  facultyOfficeHref,
+  mapFacultyToOffices,
+} from "@/lib/master-plan-inspector";
 
 interface FacultyMember {
   id: number;
@@ -42,6 +47,11 @@ export default function FacultyPage() {
   }, []);
 
   const schools = Array.from(new Set(faculty.map((f) => f.faculty_school).filter(Boolean))).sort();
+
+  const officesByFacultyId = useMemo(
+    () => new Map(mapFacultyToOffices(faculty).map((office) => [office.facultyId, office])),
+    [faculty],
+  );
 
   const filteredFaculty = faculty.filter((member) => {
     const matchesSearch =
@@ -117,7 +127,9 @@ export default function FacultyPage() {
       </div>
 
       <div className="space-y-4">
-        {filteredFaculty.map((member) => (
+        {filteredFaculty.map((member) => {
+          const office = officesByFacultyId.get(String(member.id));
+          return (
           <div key={member.id} className="rounded-lg border bg-card p-4 shadow-sm transition hover:shadow-md">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
@@ -148,8 +160,17 @@ export default function FacultyPage() {
                   </div>
                 )}
               </div>
-              {member.profile_url && (
-                <div className="flex-shrink-0">
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                {office && (
+                  <Link
+                    href={facultyOfficeHref(office)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-sm font-medium transition hover:bg-accent print:hidden"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    View Office · {office.building} {office.officeNumber}
+                  </Link>
+                )}
+                {member.profile_url && (
                   <a
                     href={member.profile_url}
                     target="_blank"
@@ -158,11 +179,12 @@ export default function FacultyPage() {
                   >
                     View Profile
                   </a>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {filteredFaculty.length === 0 && (

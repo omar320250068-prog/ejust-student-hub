@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
+import { roomHrefFromLocation } from "@/lib/room-parser";
 import type { HubNoticeCategory, LiveNotice } from "@/lib/hub-feed";
 import { inferFacultyFromCourseCode, isFaculty, type Faculty } from "@/lib/faculty";
 import { ACADEMIC_PROFILE_EVENT, readAcademicProfile, toHubFaculty } from "@/lib/onboarding";
@@ -280,7 +281,7 @@ export default function TodayPage() {
             </Insight>
             <Insight icon={<BookOpen size={16} />} title={t("dashboard.nextClass")}>
               {model.nextClass
-                ? <><p className="text-lg font-semibold text-white">{model.nextClass.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextClass.title}</p><p className="mt-3 text-xs text-amber-200">{model.nextClass.start}–{model.nextClass.end}{model.nextClass.location ? ` · ${model.nextClass.location}` : ""}</p></>
+                ? <><p className="text-lg font-semibold text-white">{model.nextClass.courseCode}</p><p className="mt-1 truncate text-sm text-slate-300">{model.nextClass.title}</p><p className="mt-3 text-xs text-amber-200">{model.nextClass.start}–{model.nextClass.end}{model.nextClass.location ? <> · <RoomLocationLink location={model.nextClass.location} /></> : ""}</p></>
                 : <Empty href="/timetable" title={t("empty.nextClassTitle")} body={t("empty.nextClassBody")} cta={t("dashboard.plan")} />}
             </Insight>
             <Insight icon={<AlarmClock size={16} />} title={t("dashboard.upcomingExams")}>
@@ -303,6 +304,17 @@ export default function TodayPage() {
         <p className="mt-5 flex items-center gap-2 text-xs text-slate-300"><Wallet size={14} /> {t("dashboard.saved")}</p>
       </div>
     </main>
+  );
+}
+
+function RoomLocationLink({ location }: { location?: string | null }) {
+  const href = roomHrefFromLocation(location);
+  if (!location) return null;
+  if (!href) return <>{location}</>;
+  return (
+    <Link href={href} className="font-semibold text-cyan-200 underline decoration-cyan-400/50 underline-offset-2 hover:text-white">
+      {location}
+    </Link>
   );
 }
 
