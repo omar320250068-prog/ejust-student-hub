@@ -19,6 +19,7 @@ export const RATE_LIMIT_POLICIES = {
   register: { limit: 10, windowMs: FIFTEEN_MINUTES_MS },
   login: { limit: 10, windowMs: FIFTEEN_MINUTES_MS },
   assistant: { limit: 20, windowMs: TEN_MINUTES_MS },
+  chatMessage: { limit: 30, windowMs: TEN_MINUTES_MS },
   resetRequest: { limit: 5, windowMs: TEN_MINUTES_MS },
   resetVerify: { limit: 5, windowMs: TEN_MINUTES_MS },
 } satisfies Record<string, RateLimitPolicy>;

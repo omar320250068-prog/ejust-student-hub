@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs tests/rate-limit.test.mjs tests/password-reset.test.mjs tests/auth-gate.test.mjs tests/i18n-parity.test.mjs tests/data-backup.test.mjs tests/timetable-data.test.mjs tests/gpa.test.mjs tests/user-data-scoping.test.mjs tests/student-data-empties.test.mjs tests/student-productivity.test.mjs tests/student-utilities.test.mjs tests/prerequisite-tree.test.mjs tests/master-plan-inspector.test.mjs"
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs tests/rate-limit.test.mjs tests/password-reset.test.mjs tests/auth-gate.test.mjs tests/i18n-parity.test.mjs tests/data-backup.test.mjs tests/timetable-data.test.mjs tests/gpa.test.mjs tests/user-data-scoping.test.mjs tests/student-data-empties.test.mjs tests/student-productivity.test.mjs tests/student-utilities.test.mjs tests/prerequisite-tree.test.mjs tests/master-plan-inspector.test.mjs tests/chat-validation.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
