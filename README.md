@@ -7,20 +7,20 @@ A student toolkit for the **Egypt-Japan University of Science and Technology** (
 | Route | What it does |
 | --- | --- |
 | `/` | Public landing for guests; after sign-in, the campus **master plan** — interactive SVG, search/filter, walking directions (nearest gate + parking, compass heading, route overlay) |
-| `/today` | Dashboard: today's classes, next exam + study split, GPA snapshot, closest scholarship deadline, food spend today, JSON data backup |
+| `/today` | Dashboard: today's classes, next exam + study split, deadlines & quizzes tracker, GPA snapshot, closest scholarship deadline, food spend today, JSON data backup |
 | `/login` | Sign in with a verified `@ejust.edu.eg` account and an optional safe `next` destination |
 | `/signup` | Create an account as a **Student** or **Teaching Assistant (TA)** |
-| `/map` | **GPS map** (Leaflet/OpenStreetMap) with 21 real campus locations, categories, and student reviews |
+| `/master-plan` | Campus **master plan** with a **Free Rooms Finder** that checks official and custom timetable slots |
 | `/gpa` | **GPA predictor & degree tracker** — current/forecast GPA, grades needed for a target, semester + cumulative chart |
-| `/timetable` | Weekly **timetable builder** with conflict detection and `.ics` export |
-| `/exams` | **Exam countdown & study planner** — urgency-weighted daily study allocation per exam |
+| `/timetable` | Weekly **timetable builder** with conflict detection and weekly recurring `.ics` export |
+| `/exams` | **Exam countdown & study planner** — urgency-weighted daily study allocation and `.ics` export with hall/seat details |
 | `/cafeteria` | **Meal budget** — pick a tray per day, daily and weekly budget tracking |
 | `/scholarships` | **Scholarship finder** — 9 funding opportunities, filters, saved shortlist, calendar export |
 | `/assistant` | **Campus assistant** — offline RAG chat that answers from this app's own data and cites its sources |
 
 ### Extras
 
-- **Calendar export** — exams and scholarship deadlines export as `.ics` (Google Calendar, Outlook, Apple Calendar)
+- **Calendar export** — weekly classes, exams (with hall/seat and a 15-minute reminder), and scholarship deadlines export as `.ics` (Google Calendar, Outlook, Apple Calendar)
 - **Print / Save as PDF** — GPA and Timetable pages print cleanly (nav and buttons hidden automatically)
 - **SIS sync extension** — an in-app 3-step guide covers Chrome and Edge; mobile users can add courses manually
 - **Offline assistant** — no API key, no external model, no network calls
@@ -65,7 +65,7 @@ in pgvector later is a one-line change and nothing else moves.
 
 - **Next.js 16** (App Router, Turbopack, Cache Components) · **React 19** · **TypeScript**
 - **Tailwind CSS v4**
-- **Leaflet + react-leaflet** (GPS map) · **Recharts** (GPA chart) · **lucide-react** (icons)
+- **Recharts** (GPA chart) · **lucide-react** (icons)
 
 ## Getting started
 
@@ -88,8 +88,9 @@ npm run start    # production server
 src/
   app/
     today/         Dashboard
-    page.tsx       Master plan (home)
-    map/           GPS map
+    page.tsx       Landing (guests) / master plan (students)
+    master-plan/   Master plan + free rooms finder
+    map/           Redirect to /master-plan
     gpa/           GPA & degree tracker
     timetable/     Timetable builder
     exams/         Exam planner
@@ -100,7 +101,7 @@ src/
     api/knowledge/ GET  — retriever diagnostics
     api/sync/      GET  — Supabase readiness report
     layout.tsx     Shell: TopNav + PrintHeader
-  components/       MasterPlan, CampusMap, TopNav, PrintButton, PrintHeader, ...
+  components/       MasterPlan, FreeRoomsPanel, DeadlinesPanel, TopNav, PrintButton, PrintHeader, ...
   data/             campusData.json, locations.ts, scholarships.ts, cafeteria.ts
   lib/
     campusTypes, gpa, timetable, exams, ics

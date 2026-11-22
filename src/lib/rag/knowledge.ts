@@ -307,7 +307,7 @@ function aboutDocs(): KnowledgeDoc[] {
       category: "about",
       text: [
         "The EJUST Student Hub is a free student toolkit for the Egypt-Japan University of Science and Technology in New Borg El-Arab City, Alexandria.",
-        "It has a master plan map, a GPS map, a GPA tracker, a timetable builder, an exam planner, a cafeteria meal budget and a scholarship finder, plus a Today dashboard that summarises everything.",
+        "It has a master plan with a free rooms finder, a GPA tracker, a timetable builder with weekly calendar export, an exam planner with calendar export, a deadlines and quizzes tracker, a cafeteria meal budget and a scholarship finder, plus a Today dashboard that summarises everything.",
         "Internal tools require a verified @ejust.edu.eg account; personal plans stay in this browser and can be exported or restored as JSON.",
       ].join(" "),
       keywords: [

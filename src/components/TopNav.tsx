@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, MapPin, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText, MessageCircleQuestion, ShieldCheck, Presentation, MoreHorizontal } from "lucide-react";
+import { Map, Building2, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText, MessageCircleQuestion, ShieldCheck, Presentation, MoreHorizontal } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSelector from "./LanguageSelector";
@@ -12,7 +12,6 @@ import { useLanguage } from "@/lib/i18n";
 const PRIMARY_LINKS = [
   { href: "/today", key: "today" as const, icon: LayoutDashboard },
   { href: "/", key: "plan" as const, icon: Map },
-  { href: "/map", key: "map" as const, icon: MapPin },
   { href: "/gpa", key: "gpa" as const, icon: GraduationCap },
   { href: "/timetable", key: "timetable" as const, icon: CalendarDays },
   { href: "/exams", key: "exams" as const, icon: AlarmClock },
@@ -20,6 +19,7 @@ const PRIMARY_LINKS = [
 ];
 
 const SECONDARY_LINKS = [
+  { href: "/master-plan#free-rooms", key: "freeRooms" as const, icon: Building2 },
   { href: "/cafeteria", key: "cafeteria" as const, icon: UtensilsCrossed },
   { href: "/scholarships", key: "scholarships" as const, icon: Award },
   { href: "/qa", key: "qa" as const, icon: MessageCircleQuestion, requiresAuth: true },
@@ -56,7 +56,8 @@ export default function TopNav() {
     ...(isStaff ? [TA_LINK] : []),
     ...(isAdmin ? [ADMIN_LINK] : []),
   ];
-  const moreActive = secondaryLinks.some((link) => pathname === link.href);
+  const isActive = (href: string) => pathname === href.split("#")[0];
+  const moreActive = secondaryLinks.some((link) => isActive(link.href));
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -95,7 +96,7 @@ export default function TopNav() {
         >
           {PRIMARY_LINKS.map(({ href, key, icon: Icon }) => {
             const label = t(`nav.${key}`);
-            const active = pathname === href;
+            const active = isActive(href);
             return (
               <Link
                 key={href}
@@ -131,7 +132,7 @@ export default function TopNav() {
             >
               {secondaryLinks.map(({ href, key, icon: Icon }) => {
                 const label = t(`nav.${key}`);
-                const active = pathname === href;
+                const active = isActive(href);
                 return (
                   <Link
                     key={href}

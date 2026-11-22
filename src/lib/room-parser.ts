@@ -121,10 +121,10 @@ export function parseRoomLocation(value: string | null | undefined): ParsedRoom 
   return { buildingCode, roomCode, floorLabel: decodeFloor(roomCode) };
 }
 
-/** The deep link consumed by /map. */
+/** The deep link consumed by /master-plan's room finder. */
 export function roomMapHref(room: ParsedRoom): string {
   const params = new URLSearchParams({ building: room.buildingCode, room: room.roomCode });
-  return `/map?${params.toString()}`;
+  return `/master-plan?${params.toString()}`;
 }
 
 export function roomHrefFromLocation(value: string | null | undefined): string | null {

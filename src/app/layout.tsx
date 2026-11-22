@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "EJUST Student Hub",
   description:
-    "Interactive campus master plan, GPS map, GPA predictor, and timetable builder for the Egypt-Japan University of Science and Technology",
+    "Campus master plan, free rooms finder, GPA predictor, and timetable builder for the Egypt-Japan University of Science and Technology",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

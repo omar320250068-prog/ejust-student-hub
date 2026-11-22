@@ -40,6 +40,18 @@ export interface SeatInfo {
   seat: string;
 }
 
+export const DEADLINE_TYPES = ["assignment", "quiz", "lab", "project"] as const;
+export type DeadlineType = (typeof DEADLINE_TYPES)[number];
+
+export interface Deadline {
+  id: string;
+  title: string;
+  courseCode: string;
+  type: DeadlineType;
+  dueAt: string;
+  completed: boolean;
+}
+
 export interface CafeteriaData {
   trays: Record<string, string[]>;
   budget: number;
@@ -54,6 +66,7 @@ export interface TodaySnapshot {
   timetable: ClassBlock[];
   gpa: GpaData | null;
   exams: ExamsSnapshot | null;
+  deadlines: Deadline[];
   cafeteria: CafeteriaData | null;
   saved: string[];
   faculty: string | null;
@@ -70,6 +83,7 @@ type Feature =
   | "timetable"
   | "exams"
   | "exam-seat"
+  | "deadlines"
   | "gpa"
   | "academic-profile"
   | "ta-profile"
@@ -119,6 +133,10 @@ export function examsStorageKey(user?: StorageUser | null): string {
 
 export function examSeatStorageKey(user?: StorageUser | null): string {
   return studentStorageKey("exam-seat", user, "ejust-exam-seat-v1");
+}
+
+export function deadlineStorageKey(user?: StorageUser | null): string {
+  return studentStorageKey("deadlines", user, "ejust:deadlines");
 }
 
 export function facultyStorageKey(user?: StorageUser | null): string {
@@ -245,6 +263,29 @@ function asFeedback(value: unknown): FeedbackEntry[] {
   return value.filter(
     (entry): entry is FeedbackEntry => isRecord(entry) && typeof entry.text === "string",
   );
+}
+
+function asDeadline(value: unknown): Deadline | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.title !== "string" ||
+    typeof value.courseCode !== "string" ||
+    typeof value.dueAt !== "string" ||
+    typeof value.completed !== "boolean" ||
+    !DEADLINE_TYPES.includes(value.type as DeadlineType)
+  ) {
+    return null;
+  }
+  if (Number.isNaN(Date.parse(value.dueAt))) return null;
+  return {
+    id: value.id,
+    title: value.title,
+    courseCode: value.courseCode,
+    type: value.type as DeadlineType,
+    dueAt: value.dueAt,
+    completed: value.completed,
+  };
 }
 
 function readJson(store: StorageLike, key: string): unknown {
@@ -401,6 +442,48 @@ export function writeSavedScholarships(
 }
 
 // ---------------------------------------------------------------------------
+// Deadlines and quizzes
+// ---------------------------------------------------------------------------
+
+/** Drop malformed entries so corrupt local storage can never poison the tracker. */
+export function sanitizeDeadlines(value: unknown): Deadline[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(asDeadline)
+    .filter((deadline): deadline is Deadline => deadline !== null);
+}
+
+export function readDeadlines(store: StorageLike, user?: StorageUser | null): Deadline[] {
+  purgeLegacyStudentKeys(store, user);
+  return sanitizeDeadlines(readJson(store, deadlineStorageKey(user)));
+}
+
+export function writeDeadlines(
+  store: StorageLike,
+  user: StorageUser | null,
+  deadlines: Deadline[],
+): void {
+  purgeLegacyStudentKeys(store, user);
+  writeJson(store, deadlineStorageKey(user), sanitizeDeadlines(deadlines));
+}
+
+/** Earliest due date first; completed items are kept for the archived list. */
+export function sortDeadlines(deadlines: Deadline[]): Deadline[] {
+  return [...deadlines].toSorted(
+    (a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt) || a.id.localeCompare(b.id),
+  );
+}
+
+export function deadlineHoursLeft(deadline: Deadline, now: Date): number {
+  return (Date.parse(deadline.dueAt) - now.getTime()) / 3_600_000;
+}
+
+/** Anything due in less than 48 hours (including overdue work) is urgent. */
+export function isUrgentDeadline(deadline: Deadline, now: Date): boolean {
+  return deadlineHoursLeft(deadline, now) < 48;
+}
+
+// ---------------------------------------------------------------------------
 // Today snapshot and class selection
 // ---------------------------------------------------------------------------
 
@@ -424,6 +507,7 @@ export function readTodaySnapshot(store: StorageLike, user?: StorageUser | null)
     timetable,
     gpa,
     exams,
+    deadlines: sanitizeDeadlines(parseJson(store.getItem(deadlineStorageKey(user)))),
     cafeteria,
     saved: readSavedScholarships(store, user),
     faculty: readFaculty(store, user),

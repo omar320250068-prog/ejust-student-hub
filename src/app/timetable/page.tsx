@@ -6,12 +6,12 @@ import { AlertTriangle, Download, Plus, Trash2, X } from "lucide-react";
 import {
   type ClassBlock,
   type Day,
-  downloadIcs,
   findConflicts,
   isValidTimeRange,
   toMinutes,
 } from "@/lib/timetable";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
+import { buildTimetableIcs, downloadIcsFile } from "@/lib/ics-export";
 import PrintButton from "@/components/PrintButton";
 import RoomBadge from "@/components/RoomBadge";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
@@ -446,7 +446,7 @@ export default function TimetablePage() {
             <PrintButton />
             <button
               type="button"
-              onClick={() => downloadIcs(visibleBlocks)}
+              onClick={() => downloadIcsFile(buildTimetableIcs(visibleBlocks), "ejust-timetable.ics")}
               disabled={!visibleBlocks.length}
               className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -463,6 +463,12 @@ export default function TimetablePage() {
             </button>
           </div>
         </header>
+
+        {visibleBlocks.length === 0 && (
+          <p className="mt-3 rounded-xl border border-dashed border-cyan-300 bg-cyan-50/60 p-3 text-sm text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-200">
+            {t("timetable.exportEmpty")}
+          </p>
+        )}
 
         <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:grid-cols-2 lg:grid-cols-4">
           <Filter label={t("timetable.faculty")} value={profile.faculty} onChange={(value) => changeProfile("faculty", value as Faculty)}>

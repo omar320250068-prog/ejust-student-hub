@@ -26,13 +26,13 @@ test("landing and auth routes are public", () => {
 });
 
 test("student tools are protected and redirect to login with next", () => {
-  for (const path of ["/map", "/assistant", "/gpa", "/today", "/timetable", "/contribute", "/admin", "/ta"]) {
+  for (const path of ["/master-plan", "/assistant", "/gpa", "/today", "/timetable", "/contribute", "/admin", "/ta"]) {
     assert.equal(isPublicPath(path), false, `${path} should require a session`);
     assert.equal(requiresAuthForApi(path), false);
   }
   assert.equal(
-    loginRedirectPath("/map", "?day=mon"),
-    "/login?next=%2Fmap%3Fday%3Dmon"
+    loginRedirectPath("/master-plan", "?day=mon"),
+    "/login?next=%2Fmaster-plan%3Fday%3Dmon"
   );
   assert.equal(
     loginRedirectPath("/assistant?q=rooms", ""),
@@ -78,7 +78,7 @@ test("next validation blocks open redirects", () => {
   ]) {
     assert.equal(safeNextPath(value), DEFAULT_LOGIN_REDIRECT, `rejected: ${value}`);
   }
-  assert.equal(safeNextPath("/map?day=mon"), "/map?day=mon");
+  assert.equal(safeNextPath("/master-plan?day=mon"), "/master-plan?day=mon");
   assert.equal(safeNextPath("/gpa#target"), "/gpa#target");
 });
 
@@ -94,6 +94,6 @@ test("role guards allow admin and approved TA only", () => {
   assert.equal(roleAllowsPath("/ta", { role: "STUDENT", taStatus: "APPROVED" }), false);
   assert.equal(roleAllowsPath("/api/ta/apply", { role: "TA", taStatus: "PENDING" }), false);
 
-  assert.equal(roleAllowsPath("/map", { role: "STUDENT" }), true);
+  assert.equal(roleAllowsPath("/master-plan", { role: "STUDENT" }), true);
   assert.equal(roleAllowsPath("/admin", null), false);
 });

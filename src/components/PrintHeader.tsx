@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 const TITLES: Record<string, string> = {
   "/today": "Today Dashboard",
   "/": "Campus Master Plan",
-  "/map": "Campus GPS Map",
+  "/master-plan": "Campus Master Plan & Free Rooms",
   "/gpa": "GPA Predictor & Degree Tracker",
   "/timetable": "Weekly Timetable",
   "/exams": "Exam Countdown & Study Plan",

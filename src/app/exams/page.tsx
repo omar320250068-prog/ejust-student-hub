@@ -20,7 +20,7 @@ import {
   type Exam,
   type ExamType,
 } from "@/lib/exams";
-import { downloadEventIcs, examEvent } from "@/lib/ics";
+import { buildExamsIcs, downloadIcsFile } from "@/lib/ics-export";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import { normalizeCode, type LiveExam } from "@/lib/hub-feed";
 import { FACULTIES, inferFacultyFromCourseCode, isFaculty, type Faculty } from "@/lib/faculty";
@@ -285,8 +285,13 @@ export default function ExamsPage() {
   const countdownLabel = `${Math.floor(countdown / 86_400_000)}d ${String(Math.floor(countdown / 3_600_000) % 24).padStart(2, "0")}h ${String(Math.floor(countdown / 60_000) % 60).padStart(2, "0")}m`;
 
   return (
-    <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadEventIcs(upcoming.map(({ exam }) => examEvent(exam)), "ejust-exams.ics", "EJUST Exams")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.export")}</button>}>
+    <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadIcsFile(buildExamsIcs(upcoming.map(({ exam }) => exam), { seat: seatInfo }), "ejust-exams.ics")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.exportExams")}</button>}>
       <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
+      {visibleExams.length === 0 && (
+        <p className="rounded-xl border border-dashed border-cyan-300 bg-cyan-50/60 p-3 text-sm text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-200">
+          {t("study.exportEmpty")}
+        </p>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="sr-only">Exam Countdown &amp; Study Planner</h1>

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs tests/rate-limit.test.mjs tests/password-reset.test.mjs tests/auth-gate.test.mjs tests/i18n-parity.test.mjs tests/data-backup.test.mjs tests/timetable-data.test.mjs tests/gpa.test.mjs tests/user-data-scoping.test.mjs tests/student-data-empties.test.mjs"
+    "test": "node --no-warnings --test tests/sis-parser.test.mjs tests/timetable-parser.test.mjs tests/hub-feed.test.mjs tests/faculty.test.mjs tests/exam-import.test.mjs tests/onboarding.test.mjs tests/gmail-digest.test.mjs tests/room-parser.test.mjs tests/email-otp.test.mjs tests/registration.test.mjs tests/rate-limit.test.mjs tests/password-reset.test.mjs tests/auth-gate.test.mjs tests/i18n-parity.test.mjs tests/data-backup.test.mjs tests/timetable-data.test.mjs tests/gpa.test.mjs tests/user-data-scoping.test.mjs tests/student-data-empties.test.mjs tests/student-productivity.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -19,7 +19,6 @@
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "framer-motion": "^14.7.1",
-    "leaflet": "^1.9.4",
     "lucide-react": "^1.60.0",
     "next": "16.4.6",
     "next-auth": "^5.0.0-beta.30",
@@ -29,7 +28,6 @@
     "postgres": "^3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-leaflet": "^5.0.0",
     "recharts": "^3.10.1",
     "xlsx": "^0.18.5"
   },
@@ -37,7 +35,6 @@
     "@tailwindcss/turbopack": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",

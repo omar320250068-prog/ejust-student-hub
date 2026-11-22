@@ -51,14 +51,14 @@ test("rejects strings without a building and room pair", () => {
   }
 });
 
-test("builds map deep links for parsed rooms", () => {
+test("builds master-plan deep links for parsed rooms", () => {
   assert.equal(
     roomMapHref(parseRoomLocation("B18 G08")),
-    "/map?building=B18&room=G08"
+    "/master-plan?building=B18&room=G08"
   );
   assert.equal(
     roomHrefFromLocation("PHY LAB. CoE F1_14"),
-    "/map?building=CoE&room=F1_14"
+    "/master-plan?building=CoE&room=F1_14"
   );
   assert.equal(roomHrefFromLocation("TBA"), null);
 });

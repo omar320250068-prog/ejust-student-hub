@@ -5,8 +5,8 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  AlarmClock, ArrowUpRight, Award, BookOpen, CalendarDays, Coffee,
-  GraduationCap, LayoutGrid, Map, Megaphone, MessageCircleQuestion, ShieldCheck, Sparkles, Sun,
+  AlarmClock, ArrowUpRight, Award, BookOpen, Building2, CalendarDays, Coffee,
+  GraduationCap, LayoutGrid, Megaphone, MessageCircleQuestion, ShieldCheck, Sparkles, Sun,
   Wallet,
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n";
@@ -26,6 +26,7 @@ import { SCHOLARSHIPS, daysUntil, formatDeadline } from "@/data/scholarships";
 import { DAYS as CAF_DAYS, formatEgp, itemById } from "@/data/cafeteria";
 import CampusBackground from "@/components/CampusBackground";
 import DataBackupPanel from "@/components/DataBackupPanel";
+import DeadlinesPanel from "@/components/DeadlinesPanel";
 import MeritPanel from "@/components/MeritPanel";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import OnboardingWizard from "@/components/OnboardingWizard";
@@ -139,8 +140,17 @@ export default function TodayPage() {
     };
   }, [locale, nowMs, snapshot, t]);
 
+  const courseCodes = useMemo(
+    () => [...new Set([
+      ...(snapshot?.timetable ?? []).map((block) => block.courseCode),
+      ...(snapshot?.gpa?.courses ?? []).map((course) => course.code),
+      ...synced.courses.map((course) => course.courseCode),
+    ].map((code) => code.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [snapshot, synced.courses],
+  );
+
   const launches = [
-    { href: "/map", key: "map" as const, icon: Map, color: "from-cyan-400 to-blue-500" },
+    { href: "/master-plan#free-rooms", key: "freeRooms" as const, icon: Building2, color: "from-cyan-400 to-blue-500" },
     { href: "/gpa", key: "gpa" as const, icon: GraduationCap, color: "from-violet-400 to-fuchsia-500" },
     { href: "/contribute?category=lecture-notes", key: "notes" as const, icon: BookOpen, color: "from-amber-300 to-orange-500" },
     { href: "/exams", key: "exams" as const, icon: CalendarDays, color: "from-rose-400 to-red-500" },
@@ -256,6 +266,10 @@ export default function TodayPage() {
             ))}
           </div>
         </section>
+
+        <div className="mt-6">
+          <DeadlinesPanel user={studentUser} courseCodes={courseCodes} />
+        </div>
 
         {model && (
           <section className="mt-6 grid gap-3 lg:grid-cols-3">
