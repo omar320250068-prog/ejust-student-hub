@@ -14,10 +14,14 @@ const PUBLIC_PAGES = new Set([
   "/forgot-password",
   "/reset-password",
   "/auth/error",
+  "/chat",
 ]);
 
 /** API namespaces that must stay reachable for authentication and cron jobs. */
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/"] as const;
+
+/** Exact API endpoints that allow anonymous access (writes still guard in-handler). */
+const PUBLIC_API_PATHS = new Set(["/api/chat/messages"]);
 
 function normalizePath(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
@@ -36,7 +40,11 @@ export function isPublicPage(pathname: string): boolean {
 }
 
 export function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const normalized = normalizePath(pathname);
+  return (
+    PUBLIC_API_PATHS.has(normalized) ||
+    PUBLIC_API_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+  );
 }
 
 /** True when a path is public without a session. */

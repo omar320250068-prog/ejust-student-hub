@@ -25,6 +25,13 @@ test("landing and auth routes are public", () => {
   }
 });
 
+test("chat page and message feed are public for guests", () => {
+  assert.equal(isPublicPath("/chat"), true, "/chat should be public");
+  assert.equal(isPublicApi("/api/chat/messages"), true, "message feed should be public");
+  assert.equal(isPublicApi("/api/chat/messages/abc123"), false, "moderation stays protected");
+  assert.equal(isPublicApi("/api/chat"), false, "AI assistant stays protected");
+});
+
 test("student tools are protected and redirect to login with next", () => {
   for (const path of ["/master-plan", "/assistant", "/gpa", "/today", "/timetable", "/contribute", "/admin", "/ta"]) {
     assert.equal(isPublicPath(path), false, `${path} should require a session`);
@@ -40,7 +47,7 @@ test("student tools are protected and redirect to login with next", () => {
   );
 });
 
-test("only auth and cron API namespaces are public", () => {
+test("other protected API namespaces stay private", () => {
   assert.equal(isPublicApi("/api/auth/reset-password"), true);
   assert.equal(isPublicApi("/api/cron/gmail-sync"), true);
   assert.equal(isPublicApi("/api/knowledge"), false);
