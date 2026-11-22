@@ -1,8 +1,8 @@
 /* E-JUST Student Hub service worker. Never intercepts /api/* requests. */
-const VERSION = "ejust-hub-v1";
+const VERSION = "ejust-hub-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
-const CORE_PAGES = new Set(["/today", "/timetable", "/exams", "/gpa", "/master-plan"]);
+const CORE_PAGES = new Set(["/today", "/timetable", "/exams", "/gpa", "/prerequisites", "/master-plan"]);
 const STATIC_FILE = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot)$/i;
 
 const OFFLINE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070d1a;color:#e2e8f0;font:16px system-ui,sans-serif;text-align:center;padding:24px}button{margin-top:16px;padding:10px 18px;border:0;border-radius:10px;background:#22d3ee;color:#070d1a;font-weight:700;cursor:pointer}</style></head><body><div><h1>You're offline</h1><p>Open a saved page or reconnect to load the latest data.</p><button onclick="location.reload()">Try again</button></div></body></html>`;

@@ -13,6 +13,11 @@ import {
   type AttendanceMap,
 } from "./attendance.ts";
 import type { Exam } from "./exams.ts";
+import {
+  DEFAULT_PREREQ_STATE,
+  sanitizePrereqState,
+  type PrereqState,
+} from "./prerequisite-tree.ts";
 import { DAYS, type ClassBlock } from "./timetable.ts";
 import {
   scopedStorageKey,
@@ -95,7 +100,8 @@ type Feature =
   | "faculty"
   | "cafeteria"
   | "cafeteria-feedback"
-  | "scholarships-saved";
+  | "scholarships-saved"
+  | "prereqs";
 
 /** Legacy keys that a signed-in student must never inherit. */
 export function legacyStudentStorageKeys(): string[] {
@@ -107,6 +113,7 @@ export function legacyStudentStorageKeys(): string[] {
     "ejust-exam-seat-v1",
     "ejust:gpa",
     "ejust-gpa-v1",
+    "ejust:prereqs",
     "ejust:academic-profile",
     "ejust:ta-profile",
     "ejust:faculty",
@@ -170,6 +177,10 @@ export function cafeteriaFeedbackStorageKey(user?: StorageUser | null): string {
 
 export function savedScholarshipsStorageKey(user?: StorageUser | null): string {
   return studentStorageKey("scholarships-saved", user, "ejust-scholarships-saved-v1");
+}
+
+export function prereqStorageKey(user?: StorageUser | null): string {
+  return studentStorageKey("prereqs", user, "ejust:prereqs");
 }
 
 function storageKeys(store: StorageLike): string[] {
@@ -508,6 +519,34 @@ export function writeAttendance(
 ): void {
   purgeLegacyStudentKeys(store, user);
   writeJson(store, attendanceStorageKey(user), sanitizeAttendance(attendance));
+}
+
+// ---------------------------------------------------------------------------
+// Prerequisite simulation state
+// ---------------------------------------------------------------------------
+
+/** Read the selected department and what-if completions for this account. */
+export function readPrereqState(
+  store: StorageLike,
+  user?: StorageUser | null,
+): PrereqState {
+  purgeLegacyStudentKeys(store, user);
+  return (
+    sanitizePrereqState(readJson(store, prereqStorageKey(user)), {
+      requireValidDepartment: true,
+    }) ?? DEFAULT_PREREQ_STATE
+  );
+}
+
+/** Persist only validated prerequisite state; never touches GPA records. */
+export function writePrereqState(
+  store: StorageLike,
+  user: StorageUser | null,
+  state: PrereqState,
+): void {
+  purgeLegacyStudentKeys(store, user);
+  const cleaned = sanitizePrereqState(state, { requireValidDepartment: true });
+  writeJson(store, prereqStorageKey(user), cleaned ?? DEFAULT_PREREQ_STATE);
 }
 
 // ---------------------------------------------------------------------------

@@ -12,7 +12,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { ClipboardPaste, Plus, Trash2, Target, BookOpen, TrendingUp, Award } from "lucide-react";
+import { ClipboardPaste, Plus, Trash2, Target, BookOpen, TrendingUp, Award, GitBranch } from "lucide-react";
+import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
 import AttendanceTracker from "@/components/AttendanceTracker";
 import FinalTargetCalculator from "@/components/FinalTargetCalculator";
@@ -201,17 +202,27 @@ export default function GpaPage() {
             progress. Scale: {Object.entries(GRADE_POINTS).map(([k, v]) => `${k}=${v.toFixed(1)}`).join(" · ")}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setSisTab("paste");
-            setSisOpen(true);
-          }}
-          className="print:hidden inline-flex items-center gap-2 rounded-xl border border-cyan-300 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
-        >
-          <ClipboardPaste size={14} />
-          {t("sisPaste.tab")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/prerequisites"
+            title={t("prereqs.gpaLinkHint")}
+            className="print:hidden inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <GitBranch size={14} />
+            {t("prereqs.gpaLink")}
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setSisTab("paste");
+              setSisOpen(true);
+            }}
+            className="print:hidden inline-flex items-center gap-2 rounded-xl border border-cyan-300 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+          >
+            <ClipboardPaste size={14} />
+            {t("sisPaste.tab")}
+          </button>
+        </div>
       </div>
 
       {!loading && activeCourses.length === 0 && (

@@ -4,6 +4,7 @@
  * Only known keys are exported/imported: arbitrary keys are never restored.
  */
 
+import { sanitizePrereqState } from "./prerequisite-tree.ts";
 import {
   baseStorageKey,
   isScopedStorageKey,
@@ -24,6 +25,7 @@ export const BACKUP_KEYS = [
   "ejust-exam-seat-v1",
   "ejust:deadlines",
   "ejust:attendance",
+  "ejust:prereqs",
   "ejust:academic-profile",
   "ejust:ta-profile",
   "ejust:sis-sync",
@@ -166,6 +168,8 @@ function validValue(key: string, value: unknown): boolean {
       return Array.isArray(value) && value.every(validDeadline);
     case "ejust:attendance":
       return validAttendance(value);
+    case "ejust:prereqs":
+      return sanitizePrereqState(value, { requireValidDepartment: true }) !== null;
     case "ejust:faculty":
       return typeof value === "string";
     case "ejust:academic-profile":

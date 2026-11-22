@@ -56,6 +56,8 @@ export default function DataBackupPanel({ className = "" }: { className?: string
       }
       const restored = applyBackup(window.localStorage, result.backup);
       setMessage(t("data.imported", { n: restored }));
+      // Feature pages that cache localStorage state can re-read it immediately.
+      window.dispatchEvent(new Event("ejust:data-restored"));
     } catch {
       setMessage(t("data.failed"));
     } finally {

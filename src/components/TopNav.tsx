@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, Building2, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText, MessageCircleQuestion, ShieldCheck, Presentation, MoreHorizontal } from "lucide-react";
+import { Map, Building2, GraduationCap, CalendarDays, Award, AlarmClock, UtensilsCrossed, LayoutDashboard, Bot, LogIn, LogOut, User, FileText, MessageCircleQuestion, ShieldCheck, Presentation, MoreHorizontal, GitBranch } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSelector from "./LanguageSelector";
@@ -19,6 +19,7 @@ const PRIMARY_LINKS = [
 ];
 
 const SECONDARY_LINKS = [
+  { href: "/prerequisites", key: "prerequisites" as const, icon: GitBranch },
   { href: "/master-plan#free-rooms", key: "freeRooms" as const, icon: Building2 },
   { href: "/cafeteria", key: "cafeteria" as const, icon: UtensilsCrossed },
   { href: "/scholarships", key: "scholarships" as const, icon: Award },
