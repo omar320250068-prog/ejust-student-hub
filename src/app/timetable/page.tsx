@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
-import { AlertTriangle, Download, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ClipboardPaste, Download, Plus, Trash2, X } from "lucide-react";
 import {
   type ClassBlock,
   type Day,
@@ -14,6 +14,7 @@ import { useLanguage, type TranslationKey } from "@/lib/i18n";
 import { buildTimetableIcs, downloadIcsFile } from "@/lib/ics-export";
 import PrintButton from "@/components/PrintButton";
 import RoomBadge from "@/components/RoomBadge";
+import AttendanceTracker from "@/components/AttendanceTracker";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import {
   ACADEMIC_PROFILE_EVENT,
@@ -233,6 +234,7 @@ export default function TimetablePage() {
   const [ready, setReady] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [sisOpen, setSisOpen] = useState(false);
+  const [sisTab, setSisTab] = useState<"guide" | "paste">("guide");
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const synced = useSyncedCourses();
@@ -435,7 +437,7 @@ export default function TimetablePage() {
   return (
     <main className="min-h-[calc(100vh-3rem)] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
+        <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} initialTab={sisTab} />
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">{t("timetable.fall")}</p>
@@ -444,6 +446,17 @@ export default function TimetablePage() {
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
             <PrintButton />
+            <button
+              type="button"
+              onClick={() => {
+                setSisTab("paste");
+                setSisOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-cyan-300 bg-white px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+            >
+              <ClipboardPaste size={15} />
+              {t("sisPaste.tab")}
+            </button>
             <button
               type="button"
               onClick={() => downloadIcsFile(buildTimetableIcs(visibleBlocks), "ejust-timetable.ics")}
@@ -513,6 +526,19 @@ export default function TimetablePage() {
           </div>
         </div>
 
+        {visibleBlocks.length > 0 && (
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              {t("attendance.title")}
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {[...new Set(visibleBlocks.map((block) => normalizeCode(block.courseCode)))].map((code) => (
+                <AttendanceTracker key={code} courseCode={code} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {loading && <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t("timetable.loading")}</p>}
         {loadError && <p className="mt-4 text-xs font-medium text-rose-600 dark:text-rose-300">{t("timetable.error")}</p>}
 
@@ -523,10 +549,14 @@ export default function TimetablePage() {
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setSisOpen(true)}
+                onClick={() => {
+                  setSisTab("paste");
+                  setSisOpen(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700"
               >
-                {t("empty.importSis")}
+                <ClipboardPaste size={15} />
+                {t("sisPaste.tab")}
               </button>
               <button
                 type="button"

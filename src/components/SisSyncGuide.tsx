@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import SisPastePanel from "@/components/SisPastePanel";
 import { scopedStorageKey, type StorageUser } from "@/lib/user-scoped-storage";
 import type { ParsedSisCourse, SisSummaryMetadata, SisTableType } from "@/lib/sis-parser";
 import type { SyncedCourse, SyncSummary } from "@/lib/sis-sync";
@@ -176,13 +177,16 @@ export function SisGuideBanner({ onOpen }: { onOpen: () => void }) {
 export function SisSyncModal({
   open,
   onClose,
+  initialTab = "guide",
 }: {
   open: boolean;
   onClose: () => void;
+  initialTab?: "guide" | "paste";
 }) {
   const { t, locale } = useLanguage();
   const { data: session, status } = useSession();
   const storageUser = status === "authenticated" ? session?.user : null;
+  const [tab, setTab] = useState<"guide" | "paste">(initialTab);
   const [rawText, setRawText] = useState("");
   const [rows, setRows] = useState<EditableRow[]>(() => readStoredSync(storageUser).courses.map(toEditableRow));
   const [busy, setBusy] = useState(false);
@@ -193,6 +197,12 @@ export function SisSyncModal({
   const [tableType, setTableType] = useState<SisTableType>("unknown");
 
   const isArabic = locale === "ar";
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => setTab(initialTab), 0);
+    return () => window.clearTimeout(timer);
+  }, [open, initialTab]);
 
   useEffect(() => {
     if (!open || status !== "authenticated") return;
@@ -376,6 +386,38 @@ export function SisSyncModal({
           </button>
         </div>
 
+        <div className="mb-4 flex gap-2 border-b border-slate-200 dark:border-slate-700" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "guide"}
+            onClick={() => setTab("guide")}
+            className={`-mb-px border-b-2 px-3 py-2 text-xs font-semibold transition ${
+              tab === "guide"
+                ? "border-cyan-600 text-cyan-700 dark:border-cyan-400 dark:text-cyan-300"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+          >
+            {t("sis.title")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "paste"}
+            onClick={() => setTab("paste")}
+            className={`-mb-px border-b-2 px-3 py-2 text-xs font-semibold transition ${
+              tab === "paste"
+                ? "border-cyan-600 text-cyan-700 dark:border-cyan-400 dark:text-cyan-300"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+          >
+            <ClipboardPaste size={13} className="me-1 inline" />
+            {t("sisPaste.tab")}
+          </button>
+        </div>
+
+        {tab === "guide" ? (
+          <>
         {status !== "authenticated" && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             {t("sis.signInRequired")}
@@ -670,6 +712,10 @@ export function SisSyncModal({
             </div>
           )}
         </div>
+          </>
+        ) : (
+          <SisPastePanel user={storageUser} signedIn={status === "authenticated"} />
+        )}
       </div>
     </div>
   );
@@ -679,9 +725,11 @@ export function SisSyncModal({
 export default function SisSyncGuide({
   open: controlledOpen,
   onOpenChange,
+  initialTab = "guide",
 }: {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  initialTab?: "guide" | "paste";
 } = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -693,7 +741,7 @@ export default function SisSyncGuide({
   return (
     <>
       <SisGuideBanner onOpen={() => setOpen(true)} />
-      <SisSyncModal open={open} onClose={() => setOpen(false)} />
+      <SisSyncModal open={open} onClose={() => setOpen(false)} initialTab={initialTab} />
     </>
   );
 }

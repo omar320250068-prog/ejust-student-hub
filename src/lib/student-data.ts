@@ -8,6 +8,10 @@
  */
 
 import { sanitizeGpaData, type GpaData } from "./gpa.ts";
+import {
+  sanitizeAttendance,
+  type AttendanceMap,
+} from "./attendance.ts";
 import type { Exam } from "./exams.ts";
 import { DAYS, type ClassBlock } from "./timetable.ts";
 import {
@@ -84,6 +88,7 @@ type Feature =
   | "exams"
   | "exam-seat"
   | "deadlines"
+  | "attendance"
   | "gpa"
   | "academic-profile"
   | "ta-profile"
@@ -137,6 +142,10 @@ export function examSeatStorageKey(user?: StorageUser | null): string {
 
 export function deadlineStorageKey(user?: StorageUser | null): string {
   return studentStorageKey("deadlines", user, "ejust:deadlines");
+}
+
+export function attendanceStorageKey(user?: StorageUser | null): string {
+  return studentStorageKey("attendance", user, "ejust:attendance");
 }
 
 export function facultyStorageKey(user?: StorageUser | null): string {
@@ -481,6 +490,24 @@ export function deadlineHoursLeft(deadline: Deadline, now: Date): number {
 /** Anything due in less than 48 hours (including overdue work) is urgent. */
 export function isUrgentDeadline(deadline: Deadline, now: Date): boolean {
   return deadlineHoursLeft(deadline, now) < 48;
+}
+
+// ---------------------------------------------------------------------------
+// Attendance and DN tracking
+// ---------------------------------------------------------------------------
+
+export function readAttendance(store: StorageLike, user?: StorageUser | null): AttendanceMap {
+  purgeLegacyStudentKeys(store, user);
+  return sanitizeAttendance(readJson(store, attendanceStorageKey(user)));
+}
+
+export function writeAttendance(
+  store: StorageLike,
+  user: StorageUser | null,
+  attendance: AttendanceMap,
+): void {
+  purgeLegacyStudentKeys(store, user);
+  writeJson(store, attendanceStorageKey(user), sanitizeAttendance(attendance));
 }
 
 // ---------------------------------------------------------------------------

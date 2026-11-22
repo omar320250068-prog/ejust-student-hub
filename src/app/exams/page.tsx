@@ -11,7 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { AlarmClock, Plus, Trash2, Brain, CalendarDays, FileText } from "lucide-react";
+import { AlarmClock, ClipboardPaste, Plus, Trash2, Brain, CalendarDays, FileText } from "lucide-react";
 import {
   EXAM_TYPES,
   allocateStudy,
@@ -27,6 +27,7 @@ import { FACULTIES, inferFacultyFromCourseCode, isFaculty, type Faculty } from "
 import { StudyShell } from "@/components/ExperienceShells";
 import SisSyncGuide, { useSyncedCourses } from "@/components/SisSyncGuide";
 import ExamImportModal from "@/components/ExamImportModal";
+import FinalTargetCalculator from "@/components/FinalTargetCalculator";
 import RoomBadge from "@/components/RoomBadge";
 import {
   ACADEMIC_PROFILE_EVENT,
@@ -99,6 +100,7 @@ export default function ExamsPage() {
   const [facultyChosen, setFacultyChosen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [sisOpen, setSisOpen] = useState(false);
+  const [sisTab, setSisTab] = useState<"guide" | "paste">("guide");
   const [refreshKey, setRefreshKey] = useState(0);
   const syncedCodes = useMemo(
     () => new Set(synced.courses.map((course) => course.courseCode.replace(/[^A-Z0-9]/gi, "").toUpperCase())),
@@ -286,7 +288,7 @@ export default function ExamsPage() {
 
   return (
     <StudyShell icon={<AlarmClock size={19} />} title={t("study.exams")} description="Keep every deadline visible, turn urgency into a study split, and find your exam seat quickly." action={<button onClick={() => downloadIcsFile(buildExamsIcs(upcoming.map(({ exam }) => exam), { seat: seatInfo }), "ejust-exams.ics")} disabled={!upcoming.length} className="print:hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{t("study.exportExams")}</button>}>
-      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
+      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} initialTab={sisTab} />
       {visibleExams.length === 0 && (
         <p className="rounded-xl border border-dashed border-cyan-300 bg-cyan-50/60 p-3 text-sm text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-200">
           {t("study.exportEmpty")}
@@ -303,10 +305,14 @@ export default function ExamsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setSisOpen(true)}
-            className="print:hidden rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+            onClick={() => {
+              setSisTab("paste");
+              setSisOpen(true);
+            }}
+            className="print:hidden inline-flex items-center gap-1.5 rounded-full border border-cyan-300 bg-white px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
           >
-            {t("empty.importSis")}
+            <ClipboardPaste size={13} />
+            {t("sisPaste.tab")}
           </button>
           <button
             type="button"
@@ -395,6 +401,8 @@ export default function ExamsPage() {
           {t("study.importOpen")}
         </button>
       </div>
+
+      <FinalTargetCalculator className="mt-4" />
 
       <section className="mt-8 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 dark:border-cyan-900 dark:bg-cyan-950/30"><p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">{t("study.countdown")}</p><p className="mt-2 font-mono text-3xl font-semibold text-slate-900 dark:text-white">{countdownLabel}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{nextExam?.exam.title ?? t("empty.examsBody")}</p></div>

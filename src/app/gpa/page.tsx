@@ -12,8 +12,10 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Plus, Trash2, Target, BookOpen, TrendingUp, Award, Sparkles } from "lucide-react";
+import { ClipboardPaste, Plus, Trash2, Target, BookOpen, TrendingUp, Award } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
+import AttendanceTracker from "@/components/AttendanceTracker";
+import FinalTargetCalculator from "@/components/FinalTargetCalculator";
 import {
   computeStats,
   EMPTY_GPA_DATA,
@@ -64,6 +66,7 @@ export default function GpaPage() {
   const synced = useSyncedCourses();
   const [useSynced, setUseSynced] = useState(false);
   const [sisOpen, setSisOpen] = useState(false);
+  const [sisTab, setSisTab] = useState<"guide" | "paste">("guide");
 
   // Retired sample courses lived under unscoped keys. Strip them on upgrade so
   // they never reappear for guests or for a newly signed-in account.
@@ -189,7 +192,7 @@ export default function GpaPage() {
 
   return (
     <StudyShell icon={<TrendingUp size={19} />} title={t("study.gpa")} description="Simulate target grades, track cumulative performance, and see how your degree is progressing." action={<PrintButton />}>
-      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} />
+      <SisSyncGuide open={sisOpen} onOpenChange={setSisOpen} initialTab={sisTab} />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="sr-only">GPA Predictor &amp; Degree Tracker</h1>
@@ -198,6 +201,17 @@ export default function GpaPage() {
             progress. Scale: {Object.entries(GRADE_POINTS).map(([k, v]) => `${k}=${v.toFixed(1)}`).join(" · ")}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSisTab("paste");
+            setSisOpen(true);
+          }}
+          className="print:hidden inline-flex items-center gap-2 rounded-xl border border-cyan-300 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-700 dark:bg-slate-900 dark:text-cyan-300"
+        >
+          <ClipboardPaste size={14} />
+          {t("sisPaste.tab")}
+        </button>
       </div>
 
       {!loading && activeCourses.length === 0 && (
@@ -214,11 +228,14 @@ export default function GpaPage() {
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button
               type="button"
-              onClick={() => setSisOpen(true)}
+              onClick={() => {
+                setSisTab("paste");
+                setSisOpen(true);
+              }}
               className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700"
             >
-              <Sparkles size={14} />
-              {t("sis.open")}
+              <ClipboardPaste size={14} />
+              {t("sisPaste.tab")}
             </button>
             <button
               type="button"
@@ -288,6 +305,8 @@ export default function GpaPage() {
         </div>
       </section>
 
+      <FinalTargetCalculator className="mt-4" />
+
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-gray-900">Courses ({activeCourses.length})</h2>
@@ -330,6 +349,7 @@ export default function GpaPage() {
                 <th className="py-2 pr-3">Semester</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Grade</th>
+                <th className="py-2 pr-3">{t("attendance.title")}</th>
                 <th className="py-2" />
               </tr>
             </thead>
@@ -372,6 +392,9 @@ export default function GpaPage() {
                       <span className="text-xs text-gray-400">—</span>
                     )}
                   </td>
+                  <td className="py-2 pr-3">
+                    <AttendanceTracker courseCode={c.code} className="min-w-[210px]" />
+                  </td>
                   <td className="py-2">
                     <button
                       onClick={() => removeCourse(c.id)}
@@ -386,7 +409,7 @@ export default function GpaPage() {
               ))}
               {visibleCourses.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="py-6 text-center text-sm text-gray-400">
                     No courses in this filter.
                   </td>
                 </tr>

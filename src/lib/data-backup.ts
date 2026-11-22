@@ -23,6 +23,7 @@ export const BACKUP_KEYS = [
   "ejust-exams-v1",
   "ejust-exam-seat-v1",
   "ejust:deadlines",
+  "ejust:attendance",
   "ejust:academic-profile",
   "ejust:ta-profile",
   "ejust:sis-sync",
@@ -108,6 +109,20 @@ function validDeadline(value: unknown): boolean {
   );
 }
 
+function validAttendance(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (entry) =>
+        isRecord(entry) &&
+        Number.isInteger(entry.absences) &&
+        (entry.absences as number) >= 0 &&
+        Number.isInteger(entry.maxAllowed) &&
+        (entry.maxAllowed as number) > 0,
+    )
+  );
+}
+
 /** Legacy timetables were bare arrays; scoped student data uses a schedules map. */
 function validTimetableValue(value: unknown): boolean {
   if (Array.isArray(value)) return value.every(validClassBlock);
@@ -149,6 +164,8 @@ function validValue(key: string, value: unknown): boolean {
       return isRecord(value) && typeof value.hall === "string" && typeof value.seat === "string";
     case "ejust:deadlines":
       return Array.isArray(value) && value.every(validDeadline);
+    case "ejust:attendance":
+      return validAttendance(value);
     case "ejust:faculty":
       return typeof value === "string";
     case "ejust:academic-profile":

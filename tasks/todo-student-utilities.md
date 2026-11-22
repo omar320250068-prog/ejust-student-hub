@@ -1,0 +1,23 @@
+# Todo: Mobile-first student utilities
+
+- [x] 1. Create this plan/task pair (leaving the stale `tasks/plan.md` / `tasks/todo.md` untouched).
+- [x] 2. Register a new `tests/student-utilities.test.mjs` in `package.json`.
+- [x] 3. Write failing tests for the SIS paste parser (grades, credits, slots, exams, messy text).
+- [x] 4. Write failing tests for `final-grade-calc.ts` (all 9 boundaries, editable splits, achievable flag).
+- [x] 5. Write failing tests for attendance storage/scoping/validation and snapshot support.
+- [x] 6. Implement pure `src/lib/sis-paste-parser.ts` and make its tests green.
+- [x] 7. Implement pure `src/lib/final-grade-calc.ts` and make its tests green.
+- [x] 8. Extend per-user scoped storage + guest fallback for attendance; make tests green.
+- [x] 9. Add attendance keys and strict validation to `src/lib/data-backup.ts`.
+- [x] 10. Wire attendance into `DataBackupPanel` export/import parity.
+- [x] 11. Add the "Paste from SIS" tab + live preview + merge import in `SisSyncGuide`.
+- [x] 12. Add SIS paste triggers to `/gpa`, `/timetable`, and `/exams` action bars/empty states.
+- [x] 13. Render the attendance tracker on `/timetable` and `/gpa` course rows.
+- [x] 14. Render the final target calculator on `/exams` and `/gpa`.
+- [x] 15. Add `src/app/manifest.ts`, app icons, and Apple metadata in `layout.tsx`.
+- [x] 16. Add `public/sw.js` (static cache-first, core-page network-first, strict `/api/*` bypass).
+- [x] 17. Add the client SW registration + dismissible localized install prompt + iOS tip.
+- [x] 18. Add all new `en`/`ar`/`ja` strings and update `TranslationKey`; parity test green.
+- [x] 19. Run `npx next typegen`, `npx tsc --noEmit`, `npx eslint src tests next.config.ts`.
+- [x] 20. Run `npm test` and `npm run build`; fix any failures.
+- [x] 21. Commit everything as one integrated change and push to `origin/main`.
