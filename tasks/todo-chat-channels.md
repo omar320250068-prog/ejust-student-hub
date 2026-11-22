@@ -7,9 +7,9 @@
 - [x] 5. Add `PATCH`/`DELETE /api/chat/messages/[id]` with role authorization.
 - [x] 6. Add en/ar/ja `chat.*` strings, `nav.chat`, and `TranslationKey` coverage.
 - [x] 7. Add `/chat` to `TopNav.tsx`.
-- [ ] 8. Build the mobile-first `/chat` page with channels, course rooms, polling, composer, and moderation UI.
-- [ ] 9. Run typegen, tsc, eslint, npm test, and build.
-- [ ] 10. Commit to `main` and push to `origin/main`.
+- [x] 8. Build the mobile-first `/chat` page with channels, course rooms, polling, composer, and moderation UI.
+- [x] 9. Run typegen, tsc, eslint, npm test, and build.
+- [x] 10. Commit to `main` and push to `origin/main`.
 
 ## Checkpoints
 - After 2: new unit tests pass and existing tests remain green.
